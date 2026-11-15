@@ -24,21 +24,32 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Configure Android NDK paths
+      - name: Configure Android NDK & SDK paths
         run: |
           NDK_PATH=$(ls -d /usr/local/lib/android/sdk/ndk/* | head -n 1)
+          echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> $GITHUB_ENV
+          echo "ANDROID_NDK_ROOT=$NDK_PATH" >> $GITHUB_ENV
           echo "NDK_HOME=$NDK_PATH" >> $GITHUB_ENV
           echo "$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_PATH
 
-      - name: Install cargo-ndk
-        run: cargo install cargo-ndk
+      - name: Install cargo-ndk and cargo-apk
+        run: cargo install cargo-ndk cargo-apk
 
-      - name: Build Android Release APK
+      - name: Build Android Release
         run: |
-          cargo ndk --platform 21 --target arm64-v8a -- build --release
+          if [ -f "android/gradlew" ]; then
+            mkdir -p android/app/src/main/jniLibs
+            cargo ndk --platform 26 --target arm64-v8a -o android/app/src/main/jniLibs build --release
+            cd android && chmod +x gradlew && ./gradlew assembleRelease
+          else
+            cargo apk build --release --target aarch64-linux-android
+          fi
 
       - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
         with:
           name: honeydew-release-apk
-          path: target/aarch64-linux-android/release/*.apk
+          path: |
+            target/release/apk/*.apk
+            target/aarch64-linux-android/release/apk/*.apk
+            android/app/build/outputs/apk/release/*.apk

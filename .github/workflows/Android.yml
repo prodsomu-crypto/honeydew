@@ -38,10 +38,11 @@ jobs:
       - name: Install cargo-ndk
         run: cargo install cargo-ndk
 
-      - name: Build Rust Library for Release (ARM64 only)
+      - name: Build and Copy Rust Library for Release (ARM64 only)
         run: |
+          cargo ndk --platform 26 --target arm64-v8a build --release
           mkdir -p android/app/src/main/jniLibs/arm64-v8a
-          cargo ndk --platform 26 --target arm64-v8a -o android/app/src/main/jniLibs build --release
+          cp target/aarch64-linux-android/release/*.so android/app/src/main/jniLibs/arm64-v8a/
 
       - name: Generate Required Assets & Build Release APK
         run: |

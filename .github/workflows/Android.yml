@@ -39,16 +39,11 @@ jobs:
       - name: Build Android Release via repo script
         run: |
           chmod +x tools/android-dist.sh
-          # Force the underlying gradle/cargo script to build release mode
-          export PROFILE=release
-          ./tools/android-dist.sh --release || ./tools/android-dist.sh
+          ./tools/android-dist.sh
 
       - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
         with:
           name: honeydew-release-apk
-          path: |
-            **/*release*.apk
-            target/aarch64-linux-android/release/*.apk
-            android/app/build/outputs/apk/release/*.apk
-          if-no-files-found: warn
+          path: android/app/build/outputs/apk/**/*.apk
+          if-no-files-found: error

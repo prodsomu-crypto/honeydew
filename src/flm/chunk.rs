@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::fmt;
 
-pub const MAX_FILE_SIZE: usize = 512 * 1024 * 1024;
+pub const MAX_FILE_SIZE: usize = 2 * 1024 * 1024 * 1024;
 pub const MAX_CHUNK_SIZE: usize = 256 * 1024 * 1024;
 
 pub const MAGIC_FL01: [u8; 4] = *b"10LF";
@@ -130,7 +130,7 @@ impl<'a> Cursor<'a> {
         Ok(u64::from_le_bytes(bytes))
     }
 
-    /// A value that is not finite reads as 0.0: a NaN in a song would never equal itself, so an unedited song would
+    /// A value that is not finite reads as 0.0. A NaN in a song would never equal itself, so an unedited song would
     /// look edited, and an infinite length, tempo or position has no meaning anywhere it goes.
     pub fn f32(&mut self) -> Result<f32, FlmError> {
         let value = f32::from_bits(self.u32()?);

@@ -24,8 +24,12 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Install Android NDK via SDK Manager cleanly
+        run: |
+          echo "y" | sudo ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager --install "ndk;25.2.9519653" "platforms;android-33" || true
+          export NDK_HOME=${ANDROID_SDK_ROOT}/ndk/25.2.9519653
+          echo "NDK_HOME=$NDK_HOME" >> $GITHUB_ENV
+          echo "carat.required=false"
 
       - name: Install cargo-ndk
         run: cargo install cargo-ndk

@@ -45,5 +45,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: honeydew-release-apk
-          path: android/app/build/outputs/apk/**/*.apk
+          path: |
+            **/*.apk
+            !**/build/intermediates/**
           if-no-files-found: error

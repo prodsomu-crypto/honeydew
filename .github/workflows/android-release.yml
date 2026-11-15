@@ -96,9 +96,9 @@ jobs:
 
       - name: Verify signed release APK
         run: |
-          APK="android/app/build/outputs/apk/release/app-release.apk"
-          test -f "$APK" || APK="app/build/outputs/apk/release/app-release.apk"
-          test -f "$APK" || { echo "Release APK not found" >&2; exit 1; }
+          APK=$(find . -name "app-release.apk" | head -n 1)
+          test -n "$APK" && test -f "$APK" || { echo "Release APK not found anywhere" >&2; exit 1; }
+          echo "Found APK at: $APK"
           cp "$APK" honeydew-arm64-release.apk
           $ANDROID_HOME/build-tools/36.0.0/apksigner verify --verbose honeydew-arm64-release.apk
 

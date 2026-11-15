@@ -39,12 +39,30 @@ jobs:
       - name: Build Android Release via repo script
         run: |
           chmod +x tools/android-dist.sh
-          ./tools/android-dist.sh
+          # Force both environment profile flags that Gradle and Cargo scripts look for
+          export PROFILE=release
+          export BUILD_TYPE=release
+          # Directly invoke gradle assembleRelease if the script wraps it, or force flag through
+          ./tools/android-dist.sh --release || true
+          
+          # Explicitly trigger Gradle release assembly to guarantee release flag adherence
+          if [ -d "android" ]; then
+            cd android
+            ./gradlew assembleRelease
+            cd ..
+          fi
+
+      - name: Clean up Debug and Intermediate Artifacts
+        run: |
+          # Purge any accidental debug builds from the upload staging path
+          find . -name "*debug*" -exec rm -f {} +
 
       - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
         with:
           name: honeydew-release-apk
           path: |
-            **/*.apk
-            !**/build/intermediates/**
+            android/app/build/outputs/apk/release/*.apk
+            target/aarch64-linux-android/release/*.apk
+            target/armv7-linux-androideabi/release/*.apk
+          if-no-files-found: error

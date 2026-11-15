@@ -24,22 +24,21 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install Android NDK via SDK Manager cleanly
+      - name: Configure Android NDK paths
         run: |
-          echo "y" | sudo ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager --install "ndk;25.2.9519653" "platforms;android-33" || true
-          export NDK_HOME=${ANDROID_SDK_ROOT}/ndk/25.2.9519653
-          echo "NDK_HOME=$NDK_HOME" >> $GITHUB_ENV
-          echo "carat.required=false"
+          NDK_PATH=$(ls -d /usr/local/lib/android/sdk/ndk/* | head -n 1)
+          echo "NDK_HOME=$NDK_PATH" >> $GITHUB_ENV
+          echo "$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_PATH
 
       - name: Install cargo-ndk
         run: cargo install cargo-ndk
 
       - name: Build Android Release APK
         run: |
-          cargo ndk --platform 21 --target arm64-linux-android build --release
+          cargo ndk --platform 21 --target arm64-v8a -- build --release
 
       - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
         with:
           name: honeydew-release-apk
-          path: target/android/release/*.apk
+          path: target/aarch64-linux-android/release/*.apk

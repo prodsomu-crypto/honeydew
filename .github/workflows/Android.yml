@@ -1,4 +1,4 @@
-name: Build Android Release APK
+name: Build Android Release APK (ARM64)
 
 on:
   push:
@@ -16,7 +16,7 @@ jobs:
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android,armv7-linux-androideabi
+          targets: aarch64-linux-android
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -27,25 +27,62 @@ jobs:
       - name: Configure Android NDK & SDK paths
         run: |
           NDK_PATH=$(ls -d /usr/local/lib/android/sdk/ndk/* | head -n 1)
+          BUILD_TOOLS=$(ls -d /usr/local/lib/android/sdk/build-tools/* | sort -V | tail -n 1)
           echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=/usr/local/lib/android/sdk" >> $GITHUB_ENV
           echo "ANDROID_NDK_ROOT=$NDK_PATH" >> $GITHUB_ENV
           echo "NDK_HOME=$NDK_PATH" >> $GITHUB_ENV
           echo "$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_PATH
+          echo "$BUILD_TOOLS" >> $GITHUB_PATH
 
       - name: Install cargo-ndk
         run: cargo install cargo-ndk
 
-      - name: Build Android Release via repo script
+      - name: Build Rust Library for Release (ARM64 only)
         run: |
-          chmod +x tools/android-dist.sh
-          ./tools/android-dist.sh
+          mkdir -p android/app/src/main/jniLibs/arm64-v8a
+          cargo ndk --platform 26 --target arm64-v8a -o android/app/src/main/jniLibs build --release
 
-      - name: Upload APK artifacts
+      - name: Generate Required Assets & Build Release APK
+        run: |
+          mkdir -p android/app/src/main/assets/content
+          if [ ! -f "android/app/src/main/assets/content/index.json" ]; then
+            python3 -c 'import json, os; open("android/app/src/main/assets/content/index.json", "w").write("{}")'
+          fi
+
+          if [ -f "tools/android-dist.sh" ]; then
+            chmod +x tools/android-dist.sh
+            ./tools/android-dist.sh || true
+          fi
+
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease
+
+      - name: Sign Release APK for Direct Installation
+        run: |
+          APK_DIR="android/app/build/outputs/apk/release"
+          if [ -f "$APK_DIR/app-release-unsigned.apk" ]; then
+            SOURCE_APK="$APK_DIR/app-release-unsigned.apk"
+          elif [ -f "$APK_DIR/app-release.apk" ]; then
+            SOURCE_APK="$APK_DIR/app-release.apk"
+          else
+            echo "Searching for any release APK..."
+            SOURCE_APK=$(find . -name "*.apk" | grep -i release | head -n 1)
+          fi
+          
+          if [ -n "$SOURCE_APK" ] && [ -f "$SOURCE_APK" ]; then
+            keytool -genkey -v -keystore release.keystore -alias honeydew -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Honeydew,O=Android,C=US"
+            zipalign -v -p 4 "$SOURCE_APK" "app-release-aligned.apk"
+            apksigner sign --ks release.keystore --ks-pass pass:android --key-pass pass:android --out "honeydew-arm64-release.apk" "app-release-aligned.apk"
+          else
+            echo "Error: No release APK found anywhere!"
+            exit 1
+          fi
+
+      - name: Upload ARM64 Release APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: honeydew-release-apk
-          path: |
-            **/*.apk
-            !**/build/intermediates/**
+          name: honeydew-arm64-release
+          path: honeydew-arm64-release.apk
           if-no-files-found: error

@@ -1,33 +1,34 @@
-# Potion UI Architecture
+# Potion visual editor
 
-Potion is a native Honeydew rack instrument with its own custom panel tree. It does not use the desktop CLAP editor path or the Lemon plugin embedding path.
+Potion is a native Honeydew rack instrument with a dedicated, touch-interactive graphical workspace. It is registered as instrument type 53 and rendered in the rack using Honeydew's egui panel system. The visual controls edit the same normalized module parameters consumed by the audio engine, preserving project state, automation and host undo behavior.
 
-## Current editor
+## Workspace
 
-The panel is registered as instrument type 53 and rendered by Honeydew's normal rack panel system. It keeps stable module parameter indices underneath the custom interface, preserving the host's existing project state, undo, automation and module preset behavior.
+The editor is arranged as eight full-width pages rather than exposing the instrument as a list of generic parameter controls:
 
-The current pages are:
-- **OSC 1 / 2 / 3:** level, pan, pitch, wavetable morph and enable for each oscillator.
-- **TABLE:** a momentary LOAD WAV TABLE action that opens Honeydew's existing module sample picker.
-- **FILTER:** cutoff, resonance, low/band/high-pass selection and filter-envelope depth.
-- **ENVELOPE:** amp attack, decay, sustain and release.
-- **MOD:** two LFOs, FM, ring modulation and warp controls.
-- **VOICE:** unison count, detune, stereo spread, glide, voice mode and polyphony.
-- **MIX:** sub, noise, velocity sensitivity and master level.
-- **MATRIX:** four modulation routes, each with source, destination and signed depth.
+- **OSC:** three oscillator cards with waveform previews, enable/bypass, level, pan, pitch and table-position controls.
+- **TABLE:** choose the oscillator, inspect its current single-cycle shape, adjust morph position and choose the factory wave region; the import button opens Honeydew's module sample picker.
+- **FILTER:** visual response curve, cutoff, resonance, envelope amount and low-pass / band-pass / high-pass mode.
+- **ENV:** plotted amplitude ADSR and independent filter-envelope controls.
+- **MOD:** two LFO shape previews, rate, depth and destination; FM, ring modulation and warp controls.
+- **VOICE:** visual unison spread, detune, stereo width, glide, poly/mono/legato and polyphony.
+- **MIX:** oscillator level bars, sub, noise, velocity response and master.
+- **MATRIX:** four source/destination/depth modulation routes.
 
-The three oscillator traces and table preview are drawn in the panel from the oscillator morph values. They are design previews, not live DSP waveform captures. A real oscilloscope, spectral view, animated modulation ranges and an interactive frame editor remain future work.
+The graphs and hit targets are drawn in one custom workspace. Sliders accept direct click/drag and buttons accept taps, so the same controls work with mouse, pen and touch input. The workspace is a native Honeydew rack panel; it is visually styled for Potion but is not yet a separate Lemon CLAP plugin editor rendered through the Lemon embedded-editor texture path.
 
-## WAV table import path
+## Wavetable and sample limits
 
-The TABLE page uses a momentary, unbound text button, following the same action pattern as Honeydew's Slicer LOAD SAMPLE control. The rack recognizes that action and opens the module sample picker. The picker decodes the selected audio file off the audio thread, then the selected file is stored as the module's CSTM PATH. The sample cache provides the prepared periodic cycle when the engine is rebuilt.
+The current factory table contains four generated frames (sine, triangle, saw and pulse/square-like). The waveform plot is a visual model of the morph position, not an oscilloscope reading the DSP voice. The current import route loads a single audio cycle through the existing module sample picker and prepares it for the oscillator engine off the audio callback.
 
-The current importer converts one audio file into one cycle. It does not yet support multi-frame table banks, drawing, harmonic editing or WAV export.
+This is not yet a full multi-frame wavetable authoring suite: freehand frame drawing, per-frame harmonic/spectral editing, frame-bank management, wavetable export and animated live spectrum are not implemented. The TABLE page's factory wave selections set morph positions; they do not create or edit new arbitrary frames.
 
-## UI-to-audio contract
+## Audio and modulation
 
-- All audible controls are normal Honeydew instrument parameters, not CLAP parameter IDs.
-- The rack sends changed normalized values through the native Instrument interface. Note-on, note-off, reset, controller and slide events use the same interface.
-- The WAV picker and sample cache handle file I/O and decode away from the audio callback. The Wavetable object and its mip levels are constructed as the instrument engine is built.
-- The render path uses bounded voice/oscillator arrays and performs no allocation, blocking lock or file I/O.
-- Device-specific CPU and audio-glitch behavior must still be checked on physical Android hardware.
+The native DSP currently provides three wavetable oscillators, mipmapped wavetable sampling, oscillator level/pan/pitch/morph, unison/detune/spread, FM, ring modulation, warp modes, sub/noise, a state-variable low/band/high-pass filter, amplitude and filter ADSRs, two LFOs, four modulation routes, poly/mono/legato behavior, glide, pitch bend, aftertouch, mod wheel and slide response.
+
+The processing path uses bounded voice/oscillator arrays and avoids file I/O and allocation on the audio callback. Physical-device CPU and audio-glitch behavior still requires verification on actual Android hardware.
+
+## Not included in this pass
+
+MPE and preset formats are intentionally out of scope here. Full Serum/Vital feature parity is not claimed: advanced wavetable authoring and spectral processing, broader filter/oscillator models, a full effect rack, advanced modulators/sequencers, and a standalone Lemon embedded CLAP editor remain separate work.

@@ -520,7 +520,13 @@ impl MainMenu {
                 Tab::Updates => self.updates.show(ui, cx, l.content, settings.1),
                 #[cfg(any(target_arch = "wasm32", target_os = "ios"))]
                 Tab::Updates => None,
-                Tab::Sounds => None,
+                Tab::Sounds => ui
+                    .put(
+                        l.content,
+                        eframe::egui::Button::new("Open Honeydew Sounds"),
+                    )
+                    .clicked()
+                    .then_some(MainMenuAction::HoneydewSounds),
             })
             .inner;
         action = tab_action.or(action);

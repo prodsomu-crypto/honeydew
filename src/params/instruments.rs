@@ -1087,7 +1087,7 @@ const POTION: &[P] = &[
     P::plain("Master", 0.7),        // 18
     P::plain("Filter Cutoff", 1.0), // 19
     P::plain("Sustain", 0.8),       // 20
-    P::plain("Decay", 0.3),         // 21
+    P::plain("Decay", 0.614),       // 21: 0.25 s
     P::plain("Filter Resonance", 0.12), // 22
     P::plain("Filter Mode", 0.0),   // 23: LP / BP / HP
     P::plain("Unison", 0.0),        // 24: 1..7 voices per oscillator
@@ -1125,10 +1125,10 @@ const POTION: &[P] = &[
     P::plain("Mod 4 Source", 0.6),    // 56
     P::plain("Mod 4 Target", 0.6),    // 57
     P::plain("Mod 4 Depth", 0.5),    // 58
-    P::plain("Filter Attack", 0.01),  // 59
-    P::plain("Filter Decay", 0.3),    // 60
+    P::plain("Filter Attack", 0.2562), // 59: 0.01 s
+    P::plain("Filter Decay", 0.614), // 60: 0.25 s
     P::plain("Filter Sustain", 0.7), // 61
-    P::plain("Filter Release", 0.3), // 62
+    P::plain("Filter Release", 0.5531), // 62: 0.18 s
 ];
 
 pub static MODULES: &[ModuleSpec] = &[

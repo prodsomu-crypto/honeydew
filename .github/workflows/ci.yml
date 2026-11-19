@@ -76,7 +76,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $llvm = 'C:\\Program Files\\LLVM\\bin'
-          if (-not (Test-Path "$llvm\\libclang.dll")) { choco install llvm -y --no-progress }
+          $llvm = 'C:\Program Files\LLVM\bin'
+          if (-not (Test-Path "$llvm\libclang.dll")) { choco install llvm -y --no-progress }
           "LIBCLANG_PATH=$llvm" >> $env:GITHUB_ENV
       - run: cargo test --locked --lib parallel_racks_match_sequential_through_sends_and_live_toggle

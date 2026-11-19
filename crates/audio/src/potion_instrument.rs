@@ -4,7 +4,7 @@
 use std::sync::Arc;
 
 use crate::instrument::Instrument;
-use crate::potion::{PotionEngine, PotionParams, OSCILLATORS};
+use crate::potion::{PotionEngine, PotionParams};
 use crate::wavetable::Wavetable;
 use crate::ProcessContext;
 
@@ -20,12 +20,11 @@ impl PotionInstrument {
         let frame = (0..2048)
             .map(|i| (std::f32::consts::TAU * i as f32 / 2048.0).sin())
             .collect();
-        let table = Arc::new(Wavetable::new(vec![frame]).expect("built-in Potion sine table is valid"));
+        let table = Arc::new(
+            Wavetable::new(vec![frame]).expect("built-in Potion sine table is valid"),
+        );
         Self {
-            engine: PotionEngine::new(
-                sample_rate,
-                std::array::from_fn(|_| table.clone()),
-            ),
+            engine: PotionEngine::new(sample_rate, std::array::from_fn(|_| table.clone())),
             params: PotionParams::default(),
         }
     }
@@ -107,6 +106,6 @@ mod tests {
         instrument.set_parameter(2, 0.8);
         assert!((instrument.params.level[0] - 0.2).abs() < 1.0e-6);
         assert!((instrument.params.level[1] - 0.8).abs() < 1.0e-6);
-        assert_eq!(OSCILLATORS, 3);
+        assert_eq!(crate::potion::OSCILLATORS, 3);
     }
 }

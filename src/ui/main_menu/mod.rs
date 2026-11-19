@@ -167,6 +167,8 @@ pub enum MainMenuAction {
     RestoreDemoSongs,
     /// Help → `What's new`: show the What's New dialog.
     WhatsNew,
+    /// Help → Honeydew Sounds: open the integrated sound catalogue.
+    HoneydewSounds,
     /// The theme creator's `Save`: write this theme into the user's themes ([`crate::theme::THEMES_FOLDER`]).
     SaveTheme(crate::theme::Theme),
     /// The theme creator's `Export`: write this theme where the user puts it.
@@ -184,7 +186,7 @@ pub enum MainMenuAction {
     ClearPerformance,
 }
 
-/// The Help menu's links, after `What's new`: the project's own pages.
+/// The Help menu's links, after its built-in entries: the project's own pages.
 pub const HELP_LINKS: [(&str, &str); 2] = [
     ("User manual", "https://github.com/daijro/honeydew#readme"),
     (
@@ -193,9 +195,9 @@ pub const HELP_LINKS: [(&str, &str); 2] = [
     ),
 ];
 
-/// The Help menu at `at`: `What's new` (item 0), then [`HELP_LINKS`].
+/// The Help menu at `at`: What's new (0), Honeydew Sounds (1), then [`HELP_LINKS`].
 fn help_menu(ctx: &eframe::egui::Context, cx: &UiCtx, id: Id, at: Pos2) -> PopupResult<usize> {
-    let labels = std::iter::once("What's new").chain(HELP_LINKS.iter().map(|l| l.0));
+    let labels = ["What's new", "Honeydew Sounds"].into_iter().chain(HELP_LINKS.iter().map(|l| l.0));
     let items: Vec<PopupItem<usize>> = (labels.enumerate())
         .map(|(row, label)| PopupItem::new(row, 0, row, label))
         .collect();
@@ -430,7 +432,8 @@ impl MainMenu {
             }
             action = picked.selected.map(|i| match i {
                 0 => MainMenuAction::WhatsNew,
-                i => MainMenuAction::OpenLink(HELP_LINKS[i - 1].1.into()),
+                1 => MainMenuAction::HoneydewSounds,
+                i => MainMenuAction::OpenLink(HELP_LINKS[i - 2].1.into()),
             });
         }
 

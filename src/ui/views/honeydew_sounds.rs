@@ -375,14 +375,21 @@ pub fn show(state: &mut State, ui: &mut egui::Ui, app: &mut AppCtx) -> Option<Na
         ctx.request_repaint_after(std::time::Duration::from_millis(120));
     }
 
+    // A dock-like browser panel, matching the side-by-side workflow of mobile DAWs.
+    let screen = ctx.content_rect();
+    let width = if screen.width() < screen.height() {
+        screen.width()
+    } else {
+        (screen.width() * 0.44).clamp(300.0, 480.0).min(screen.width())
+    };
     let mut open = true;
     egui::Window::new("Honeydew Sounds")
         .id(egui::Id::new("honeydew_sounds_window"))
         .open(&mut open)
         .collapsible(false)
-        .resizable(true)
-        .default_size(egui::vec2(760.0, 620.0))
-        .min_width(360.0)
+        .resizable(false)
+        .default_pos(egui::pos2(screen.right() - width, screen.top()))
+        .default_size(egui::vec2(width, screen.height()))
         .show(&ctx, |ui| {
             ui.horizontal_wrapped(|ui| {
                 ui.label(egui::RichText::new("Find sounds. Preview them. Bring them into your project.").strong());
@@ -463,7 +470,7 @@ pub fn show(state: &mut State, ui: &mut egui::Ui, app: &mut AppCtx) -> Option<Na
             ui.separator();
 
             let mut selected = None;
-            egui::ScrollArea::vertical().max_height(300.0).show(ui, |ui| {
+            egui::ScrollArea::vertical().max_height(ui.available_height().max(120.0)).show(ui, |ui| {
                 let visible: Vec<(usize, SoundAsset)> = state.results.iter().cloned().enumerate()
                     .filter(|(_, asset)| state.category.is_none_or(|category| asset.category == category))
                     .collect();

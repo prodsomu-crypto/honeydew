@@ -154,16 +154,18 @@ impl PotionEngine {
         let target = f32::from(note.min(127));
         let mono = params.voice_mode != 0;
         let legato = params.voice_mode >= 2;
+        let voice_limit = params.polyphony.clamp(1, MAX_VOICES);
+        let voices = &mut self.voices[..voice_limit];
         let existing = if mono {
-            self.voices.iter().position(|voice| voice.active)
+            voices.iter().position(|voice| voice.active)
         } else {
             None
         };
         let slot = existing
-            .or_else(|| self.voices.iter().position(|voice| !voice.active))
-            .or_else(|| self.voices.iter().position(|voice| voice.amp_stage == 3))
+            .or_else(|| voices.iter().position(|voice| !voice.active))
+            .or_else(|| voices.iter().position(|voice| voice.amp_stage == 3))
             .unwrap_or(0);
-        let voice = &mut self.voices[slot];
+        let voice = &mut voices[slot];
         let continuing = existing.is_some() && legato;
         let start_pitch = if existing.is_some() {
             voice.pitch
@@ -200,10 +202,10 @@ impl PotionEngine {
     }
 
     pub fn note_off(&mut self, note: u8) {
-        if let Some(voice) = self
+        for voice in self
             .voices
             .iter_mut()
-            .find(|voice| voice.active && voice.note == note)
+            .filter(|voice| voice.active && voice.note == note)
         {
             voice.amp_stage = 3;
         }
@@ -347,14 +349,9 @@ impl PotionEngine {
                     }
                     osc_out[osc] = mono;
                 }
-                let ring = (1.0 - ring_amount) + ring_amount * osc_out[1];
-                out_l += osc_out[0] * 0.0; // stereo contribution is already accumulated above.
-                out_r += osc_out[0] * 0.0;
                 if ring_amount > 0.0 {
-                    // Blend a ring-modulated first oscillator into the dry signal without another oscillator pass.
-                    let dry = osc_out[0];
-                    let wet = dry * ring;
-                    let delta = (wet - dry) * ring_amount;
+                    // The dry signal is already present in the stereo sum; add the exact ring-modulation difference.
+                    let delta = osc_out[0] * ring_amount * (osc_out[1] - 1.0);
                     out_l += delta * 0.70710677;
                     out_r += delta * 0.70710677;
                 }

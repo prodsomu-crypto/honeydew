@@ -68,7 +68,11 @@ fn instrument(
             samples,
             origin,
         ))),
-        53 => Some(Box::new(PotionInstrument::new(sample_rate))),
+        53 => {
+            let wave = super::samples::shape_key(module).and_then(|key| samples.shape(&key));
+            wave.as_ref().map(Arc::as_ptr).hash(origin);
+            Some(Box::new(PotionInstrument::new(sample_rate, wave)))
+        }
         // A hosted plugin (desktop only); its instance outlives engines, so the build is by which plugin it is.
         PLUGIN_INSTRUMENT => {
             module.file.plugin.as_ref().map(|p| p.uid()).hash(origin);

@@ -1229,8 +1229,10 @@ pub struct RackActions {
     pub create_send: Option<usize>,
     /// A DW Sampler's `New from samples…`: open the instrument builder for the module with this instance id.
     pub builder: Option<i32>,
-    /// Issue #68: a Lemon card's full screen button: show the editor of the module with this instance id full screen.
+    /// Issue #68: a Lemon card's full screen button: show its editor full screen.
     pub lemon_full: Option<i32>,
+    /// Potion's visual editor requested its full-screen workspace.
+    pub potion_full: Option<i32>,
 }
 
 /// A card's panel state, and its module's `CSTM` blob as the state last matched it: a card is seeded from the blob
@@ -1272,6 +1274,8 @@ struct CardEdits {
     double_tap: bool,
     /// Issue #68: a Lemon card's full screen button was clicked.
     full: bool,
+    /// Potion's dedicated full-screen editor button was clicked.
+    potion_full: bool,
 }
 
 /// A card held to reorder it.
@@ -2207,6 +2211,9 @@ impl RackPanel {
         if edits.full {
             actions.lemon_full = Some(id);
         }
+        if edits.potion_full {
+            actions.potion_full = Some(id);
+        }
         let ccs = edits.ccs.into_iter().map(|(param, value)| ParamChange {
             channel: index,
             instance_id: 0,
@@ -2297,7 +2304,8 @@ impl RackPanel {
         };
         // Issue #68: a Lemon card showing its editor has the full screen button in that cell.
         let full = lemon.is_some() && crate::plugins::lemon_open(self.channel_id, id).is_some();
-        let has_popout = window.is_some() || full;
+        let potion_editor = module.type_id == 53;
+        let has_popout = window.is_some() || full || potion_editor;
         let preset = module.file.preset_name.clone();
         let preset_w = preset_width(text_width(ui, &preset, m.font_id(FontSize::Pt10)), m.u(1.0));
         let [
@@ -2434,6 +2442,11 @@ impl RackPanel {
         if full {
             let b = icon_button(base.with("full screen"), popout, IconId::Expand);
             edits.full = widgets::button(ui, cx, &b, true).clicked();
+            crate::ui::tooltip::tip(ui, popout, "Full screen", None);
+        }
+        if potion_editor {
+            let b = icon_button(base.with("potion full screen"), popout, IconId::Expand);
+            edits.potion_full = widgets::button(ui, cx, &b, true).clicked();
             crate::ui::tooltip::tip(ui, popout, "Full screen", None);
         }
         let b = icon_button(base.with("menu"), menu, IconId::Menu);

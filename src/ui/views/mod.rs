@@ -61,6 +61,8 @@ pub mod instrument_builder;
 pub mod versions;
 // A Lemon plugin's editor full screen (#68).
 pub mod lemon_editor;
+// Potion's visual wavetable editor full screen.
+pub mod potion_editor;
 // A song section's dialog (#80).
 pub mod section_settings;
 // `Import MIDI Tracks`' picker (#113).
@@ -179,6 +181,8 @@ pub enum Overlay {
     /// The editor of the built-in Lemon plugin module with instance id `module` on `channel`, full screen (#68, its rack
     /// card's full screen button).
     LemonEditor { channel: usize, module: i32 },
+    /// Potion's native visual synth workspace for module instance `module` on `channel`.
+    PotionEditor { channel: usize, module: i32 },
     /// Song section `section`'s dialog (#80: the playlist ruler's `Section…`, or a tap on its name), with its name field's
     /// text.
     SectionSettings { section: usize, name: String },
@@ -579,6 +583,8 @@ pub struct Slots {
     pub versions: versions::State,
     /// The full screen Lemon editor's texture and pointer.
     pub lemon_editor: lemon_editor::State,
+    /// Potion's full-screen page selection and visual editor state.
+    pub potion_editor: potion_editor::State,
     /// `Import MIDI Tracks`' picker.
     pub midi_picker: midi_picker::State,
 }
@@ -681,7 +687,8 @@ impl Slots {
         }
         let top = overlays.len().saturating_sub(1);
         self.rack.full = overlays.iter().find_map(|o| match o {
-            Overlay::LemonEditor { channel, module } => Some((*channel, *module)),
+            Overlay::LemonEditor { channel, module }
+            | Overlay::PotionEditor { channel, module } => Some((*channel, *module)),
             _ => None,
         });
         let above = (overlays.iter())
@@ -841,6 +848,9 @@ impl Slots {
             // Hidden while what it opened (the sample picker) or a message shows over it.
             Overlay::LemonEditor { channel, module } => {
                 top.then(|| lemon_editor::show(&mut self.lemon_editor, ui, app, *channel, *module))?
+            }
+            Overlay::PotionEditor { channel, module } => {
+                top.then(|| potion_editor::show(&mut self.potion_editor, ui, app, *channel, *module))?
             }
             Overlay::SectionSettings { section, name } => {
                 section_settings::show(ui, app, *section, name)

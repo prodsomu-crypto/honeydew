@@ -7,15 +7,15 @@ Potion is a native Honeydew rack instrument with a dedicated, touch-interactive 
 The editor is arranged as eight full-width pages rather than exposing the instrument as a list of generic parameter controls:
 
 - **OSC:** three oscillator cards with waveform previews, enable/bypass, level, pan, pitch and table-position controls.
-- **TABLE:** choose the oscillator, inspect its current single-cycle shape, adjust morph position and choose the factory wave region; the import button opens Honeydew's module sample picker.
+- **TABLE:** oscillator selection, single-cycle preview, morph control, factory wave regions and an import button in the table editor itself.
 - **FILTER:** visual response curve, cutoff, resonance, envelope amount and low-pass / band-pass / high-pass mode.
 - **ENV:** plotted amplitude ADSR and independent filter-envelope controls.
-- **MOD:** two LFO shape previews, rate, depth and destination; FM, ring modulation and warp controls.
+- **MOD:** two LFO shape previews, rate, depth and named destinations; FM, ring modulation and warp controls.
 - **VOICE:** visual unison spread, detune, stereo width, glide, poly/mono/legato and polyphony.
 - **MIX:** oscillator level bars, sub, noise, velocity response and master.
 - **MATRIX:** four source/destination/depth modulation routes.
 
-The graphs and hit targets are drawn in one custom workspace. Sliders accept direct click/drag and buttons accept taps, so the same controls work with mouse, pen and touch input. The workspace is a native Honeydew rack panel; it is visually styled for Potion but is not yet a separate Lemon CLAP plugin editor rendered through the Lemon embedded-editor texture path.
+The graphs and hit targets are drawn in one custom workspace. Sliders accept direct click/drag and buttons accept taps, so the same controls work with mouse, pen and touch input. The rack's expand button opens a Lemon-style fullscreen overlay: a dimmed backdrop, full-width editor canvas, eight large page tabs and a close control in the upper corner. The fullscreen view edits the same module parameters and sends live parameter updates to the running engine. The wavetable import action opens the existing module sample picker over the fullscreen editor.
 
 ## Wavetable and sample limits
 
@@ -29,6 +29,6 @@ The native DSP currently provides three wavetable oscillators, mipmapped wavetab
 
 The processing path uses bounded voice/oscillator arrays and avoids file I/O and allocation on the audio callback. Physical-device CPU and audio-glitch behavior still requires verification on actual Android hardware.
 
-## Not included in this pass
+## Not included
 
-MPE and preset formats are intentionally out of scope here. Full Serum/Vital feature parity is not claimed: advanced wavetable authoring and spectral processing, broader filter/oscillator models, a full effect rack, advanced modulators/sequencers, and a standalone Lemon embedded CLAP editor remain separate work.
+MPE and preset formats are intentionally out of scope. Full Serum/Vital feature parity is not claimed: advanced wavetable authoring and spectral processing, broader filter/oscillator models, a full effect rack, advanced modulators/sequencers and physical-device performance verification remain separate work.

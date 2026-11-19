@@ -416,10 +416,22 @@ fn table_page(
             put(module, 10 + selected, v, changed);
         }
     }
+    let import = Rect::from_min_size(
+        pos2(side.left() + 8.0, side.bottom() - 39.0),
+        vec2(side.width() - 16.0, 30.0),
+    );
+    ui.painter().rect_filled(import, 5.0, CARD_HI);
+    text(ui, import, "IMPORT WAVETABLE", 9.0, ink, Align2::CENTER_CENTER);
+    if ui
+        .interact(import, id.with(("import-wavetable", selected)), Sense::click())
+        .clicked()
+    {
+        state.settings.insert(LOAD_WAV_TABLE, 1.0);
+    }
     ui.painter().text(
         pos2(area.left() + 3.0, area.bottom() - 44.0),
         Align2::LEFT_TOP,
-        "The frame display follows the selected oscillator's morph position.",
+        "Wave preview follows this oscillator's table position.",
         FontId::proportional(9.0),
         MUTED,
     );
@@ -935,7 +947,7 @@ fn matrix_page(
     }
 }
 
-fn workspace(
+pub(crate) fn workspace(
     ui: &mut Ui,
     cx: &UiCtx,
     id: Id,
@@ -998,22 +1010,22 @@ fn workspace(
 
 /// The wavetable import action is a momentary panel button, routed to Honeydew's
 /// existing module sample picker (decode stays outside the audio callback).
-pub fn asks_for_wavetable(state: &PanelState, edited: &[u32]) -> bool {
-    edited.contains(&LOAD_WAV_TABLE)
-        && state
+pub fn asks_for_wavetable(state: &mut PanelState, edited: &[u32]) -> bool {
+    let requested = edited.contains(&LOAD_WAV_TABLE)
+        || state
             .settings
             .get(&LOAD_WAV_TABLE)
-            .is_some_and(|&value| value >= 0.5)
+            .is_some_and(|&value| value >= 0.5);
+    if requested {
+        state.settings.insert(LOAD_WAV_TABLE, 0.0);
+    }
+    requested
 }
 
 pub fn panel() -> Option<Panel> {
     Some(Panel::new(vstack([
         tabs(0, "OSC · TABLE · FILTER · ENV · MOD · VOICE · MIX · MATRIX").h(Size::U(1.25)),
         display(9000).draw(workspace).h(Size::U(12.8)),
-        text_toggle(LOAD_WAV_TABLE, "IMPORT WAVETABLE")
-            .momentary()
-            .show(Show::Tab(1))
-            .h(Size::U(0.9)),
     ])))
 }
 

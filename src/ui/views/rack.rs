@@ -39,8 +39,7 @@ pub struct State {
     /// The rack was re-pointed from a gone channel to the one now at its index, whose widgets take the same ids: a
     /// drag of the old rack's control ends before it moves the new one's ([`show`]).
     pub(crate) stop_drag: bool,
-    /// Issue #68: the Lemon card (channel, instance id) whose editor shows full screen ([`super::lemon_editor`]): the
-    /// overlays set it each frame.
+    /// The module (channel, instance id) whose built-in or native editor is full screen; overlays set it each frame.
     pub(crate) full: Option<(usize, i32)>,
     /// Issue #98: a card's ◀ or ▶, as (channel id, instance id, −1 or 1), for the overlays to load next frame
     /// ([`super::preset_picker::step_preset`]).
@@ -295,6 +294,9 @@ pub fn show(
     }
     if let Some(module) = actions.lemon_full {
         return Some(Nav::Open(Overlay::LemonEditor { channel, module }));
+    }
+    if let Some(module) = actions.potion_full {
+        return Some(Nav::Open(Overlay::PotionEditor { channel, module }));
     }
     actions.close.then_some(Nav::Close)
 }

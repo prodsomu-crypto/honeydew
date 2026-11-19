@@ -66,6 +66,10 @@ impl PotionEngine {
         }
     }
 
+    pub fn reset(&mut self) {
+        self.voices.fill(Voice::default());
+    }
+
     pub fn set_sample_rate(&mut self, sample_rate: f32) {
         if sample_rate.is_finite() && sample_rate > 1.0 {
             self.sample_rate = sample_rate;

@@ -2220,10 +2220,7 @@ impl RackPanel {
             Some(Press::Stepped) => actions.replace_song = true,
             None => {}
         }
-        if edits.sample
-            || three_osc::custom_picked(module, &edits.changed)
-
-        {
+        if edits.sample || three_osc::custom_picked(module, &edits.changed) {
             actions.module_sample = Some(id);
         }
         self.report(actions, index, module, edits.changed);

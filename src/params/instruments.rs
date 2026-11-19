@@ -1113,22 +1113,22 @@ const POTION: &[P] = &[
     P::plain("Filter Env", 0.0),    // 44
     P::plain("Polyphony", 1.0),     // 45
     P::plain("Table Import Action", 0.0), // 46 reserved to keep later parameter indices stable
-    P::plain("Mod 1 Source", 0.0),    // 47
-    P::plain("Mod 1 Target", 0.0),    // 48
-    P::plain("Mod 1 Depth", 0.5),     // 49
-    P::plain("Mod 2 Source", 0.2),   // 50
-    P::plain("Mod 2 Target", 0.2),    // 51
-    P::plain("Mod 2 Depth", 0.5),     // 52
-    P::plain("Mod 3 Source", 0.4),   // 53
-    P::plain("Mod 3 Target", 0.4),    // 54
-    P::plain("Mod 3 Depth", 0.5),    // 55
-    P::plain("Mod 4 Source", 0.6),    // 56
-    P::plain("Mod 4 Target", 0.6),    // 57
-    P::plain("Mod 4 Depth", 0.5),    // 58
-    P::plain("Filter Attack", 0.2562), // 59: 0.01 s
-    P::plain("Filter Decay", 0.614), // 60: 0.25 s
-    P::plain("Filter Sustain", 0.7), // 61
-    P::plain("Filter Release", 0.5531), // 62: 0.18 s
+    P::plain("Mod 1 Source", 0.0),        // 47
+    P::plain("Mod 1 Target", 0.0),        // 48
+    P::plain("Mod 1 Depth", 0.5),         // 49
+    P::plain("Mod 2 Source", 0.2),        // 50
+    P::plain("Mod 2 Target", 0.2),        // 51
+    P::plain("Mod 2 Depth", 0.5),         // 52
+    P::plain("Mod 3 Source", 0.4),        // 53
+    P::plain("Mod 3 Target", 0.4),        // 54
+    P::plain("Mod 3 Depth", 0.5),         // 55
+    P::plain("Mod 4 Source", 0.6),        // 56
+    P::plain("Mod 4 Target", 0.6),        // 57
+    P::plain("Mod 4 Depth", 0.5),         // 58
+    P::plain("Filter Attack", 0.2562),   // 59: 0.01 s
+    P::plain("Filter Decay", 0.614),      // 60: 0.25 s
+    P::plain("Filter Sustain", 0.7),      // 61
+    P::plain("Filter Release", 0.5531),   // 62: 0.18 s
 ];
 
 pub static MODULES: &[ModuleSpec] = &[

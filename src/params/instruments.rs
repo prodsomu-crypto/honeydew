@@ -1076,9 +1076,9 @@ const POTION: &[P] = &[
     P::plain("Osc 1 Pitch", 0.5), // 7
     P::plain("Osc 2 Pitch", 0.375), // 8
     P::plain("Osc 3 Pitch", 0.25), // 9
-    P::plain("Osc 1 Table", 0.0), // 10
-    P::plain("Osc 2 Table", 0.0), // 11
-    P::plain("Osc 3 Table", 0.0), // 12
+    P::plain("", 0.0), // 10: reserved for wavetable position until multi-frame tables are available
+    P::plain("", 0.0), // 11
+    P::plain("", 0.0), // 12
     P::toggle("Osc 1 On", 1.0), // 13
     P::toggle("Osc 2 On", 1.0), // 14
     P::toggle("Osc 3 On", 1.0), // 15

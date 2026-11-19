@@ -19,10 +19,10 @@ Before wiring the browser into the UI, inspect the current sample picker and pro
 ## Current implementation status
 
 - Added `src/content/sounds.rs` with provider-neutral asset metadata, the six browser categories, CC0/CC-BY/CC-BY-NC licence parsing, attribution formatting, and validation of provider metadata/HTTPS URLs.
-- Added `src/content/freesound.rs` with Freesound search-response DTOs, a bounded/encoded search URL builder, preview selection, tag-based category hints, and conversion into validated provider-neutral assets.
+- Added `src/content/freesound.rs` with Freesound search-response DTOs, a bounded/encoded search URL builder, tag-based category hints, and conversion into validated provider-neutral assets. Preview URLs are treated as untrusted and restricted to HTTPS Freesound hosts.
 - Added transport-independent credential validation and Authorization-header construction. Credentials are not put in URLs or persisted by this module. A live HTTP client is deferred until the lockfile can be regenerated and all supported targets can be built.
 - Exposed both modules as `crate::content::sounds` and `crate::content::freesound`.
-- Added adapter tests for URL encoding/pagination bounds, CC-BY metadata conversion, attribution retention, and rejection of ND or preview-less results.
+- Added adapter tests for URL encoding/pagination bounds, CC-BY metadata conversion, attribution retention, rejection of ND or preview-less results, and rejection of insecure or external preview hosts.
 - Added unit tests for licence eligibility, attribution, insecure URLs, and invalid duration metadata.
 - Licence parsing recognizes canonical Creative Commons CC0, CC-BY 2.0/3.0/4.0, and CC-BY-NC 2.0/3.0/4.0 URLs as well as short identifiers. NC assets are allowed for this personal-use project but always require attribution; ND variants remain excluded.
 - Confirmed the existing `src/ui/views/sample_picker.rs` path already handles worker-thread decoding, waveform preview, and applying imported audio to pads, clips, and supported modules. Honeydew Sounds should hand downloaded files into that path rather than create another preview engine.

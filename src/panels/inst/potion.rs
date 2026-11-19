@@ -638,7 +638,7 @@ fn modulation_page(
         card(ui, panel, &format!("LFO {}", lfo + 1), ink);
         let graph = Rect::from_min_size(
             pos2(panel.left() + 9.0, panel.top() + 28.0),
-            vec2(panel.width() - 18.0, panel.height() * 0.37),
+            vec2(panel.width() - 18.0, panel.height() * 0.28),
         );
         ui.painter().rect_filled(graph, 4.0, TRACK);
         graph_grid(ui, graph);
@@ -647,32 +647,53 @@ fn modulation_page(
             lfo_points(graph, shape.min(2)),
             Stroke::new(1.8, ink),
         ));
-        let params = [
-            (29 + lfo * 4, "RATE"),
-            (30 + lfo * 4, "DEPTH"),
-            (31 + lfo * 4, "DESTINATION"),
-        ];
-        for (i, (param, label)) in params.into_iter().enumerate() {
-            slider(
-                ui,
-                id,
-                Rect::from_min_size(
-                    pos2(panel.left() + 8.0, graph.bottom() + 6.0 + i as f32 * 45.0),
-                    vec2(panel.width() - 16.0, 40.0),
-                ),
-                module,
-                param,
-                label,
-                ink,
-                changed,
-            );
-        }
+        let control_top = graph.bottom() + 5.0;
+        let control_width = panel.width() - 16.0;
+        slider(
+            ui,
+            id,
+            Rect::from_min_size(
+                pos2(panel.left() + 8.0, control_top),
+                vec2(control_width, 31.0),
+            ),
+            module,
+            29 + lfo * 4,
+            "RATE",
+            ink,
+            changed,
+        );
+        slider(
+            ui,
+            id,
+            Rect::from_min_size(
+                pos2(panel.left() + 8.0, control_top + 33.0),
+                vec2(control_width, 31.0),
+            ),
+            module,
+            30 + lfo * 4,
+            "DEPTH",
+            ink,
+            changed,
+        );
         choice(
             ui,
             id,
             Rect::from_min_size(
-                pos2(panel.left() + 8.0, panel.bottom() - 33.0),
-                vec2(panel.width() - 16.0, 27.0),
+                pos2(panel.left() + 8.0, control_top + 66.0),
+                vec2(control_width, 22.0),
+            ),
+            module,
+            31 + lfo * 4,
+            &["PITCH", "FILTER", "PAN"],
+            ink,
+            changed,
+        );
+        choice(
+            ui,
+            id,
+            Rect::from_min_size(
+                pos2(panel.left() + 8.0, control_top + 90.0),
+                vec2(control_width, 22.0),
             ),
             module,
             32 + lfo * 4,
@@ -683,7 +704,7 @@ fn modulation_page(
     }
 
     let top = area.top() + area.height() * 0.61;
-    let h = (area.bottom() - top - 4.0) / 1.0;
+    let h = (area.height() * 0.18).clamp(48.0, 68.0);
     let w = (area.width() - gap * 2.0) / 3.0;
     for (i, (param, label)) in [(37, "FM AMOUNT"), (38, "RING MOD"), (39, "WARP AMOUNT")]
         .into_iter()
@@ -871,28 +892,46 @@ fn matrix_page(
         let panel = Rect::from_min_size(pos2(x, y), vec2(width, height));
         card(ui, panel, &format!("MOD ROUTE {}", route + 1), ink);
         let base = 47 + route * 3;
-        for (i, (param, label)) in [
-            (base, "SOURCE"),
-            (base + 1, "DESTINATION"),
-            (base + 2, "DEPTH"),
-        ]
-        .into_iter()
-        .enumerate()
-        {
-            slider(
-                ui,
-                id,
-                Rect::from_min_size(
-                    pos2(panel.left() + 8.0, panel.top() + 28.0 + i as f32 * 43.0),
-                    vec2(panel.width() - 16.0, 38.0),
-                ),
-                module,
-                param,
-                label,
-                ink,
-                changed,
-            );
-        }
+        let control_width = panel.width() - 16.0;
+        choice(
+            ui,
+            id,
+            Rect::from_min_size(
+                pos2(panel.left() + 8.0, panel.top() + 31.0),
+                vec2(control_width, 24.0),
+            ),
+            module,
+            base,
+            &["LFO 1", "LFO 2", "ENV", "VEL", "MOD", "TOUCH"],
+            ink,
+            changed,
+        );
+        choice(
+            ui,
+            id,
+            Rect::from_min_size(
+                pos2(panel.left() + 8.0, panel.top() + 61.0),
+                vec2(control_width, 24.0),
+            ),
+            module,
+            base + 1,
+            &["PITCH", "FILTER", "PAN", "OSC 1", "OSC 2", "OSC 3"],
+            ink,
+            changed,
+        );
+        slider(
+            ui,
+            id,
+            Rect::from_min_size(
+                pos2(panel.left() + 8.0, panel.top() + 91.0),
+                vec2(control_width, 40.0),
+            ),
+            module,
+            base + 2,
+            "MODULATION DEPTH",
+            ink,
+            changed,
+        );
     }
 }
 

@@ -19,6 +19,8 @@ pub struct PotionParams {
     pub attack_seconds: f32,
     pub release_seconds: f32,
     pub master: f32,
+    pub sustain: f32,
+    pub filter_cutoff: f32,
 }
 
 impl Default for PotionParams {
@@ -32,6 +34,8 @@ impl Default for PotionParams {
             attack_seconds: 0.01,
             release_seconds: 0.18,
             master: 0.7,
+            sustain: 0.8,
+            filter_cutoff: 1.0,
         }
     }
 }
@@ -49,6 +53,8 @@ struct Voice {
     velocity: f32,
     pan: f32,
     envelope: f32,
+    filter_left: f32,
+    filter_right: f32,
     oscillators: [Oscillator; OSCILLATORS],
 }
 
@@ -123,6 +129,8 @@ impl PotionEngine {
         let attack = (params.attack_seconds.max(0.001) * sr).recip();
         let release = (params.release_seconds.max(0.001) * sr).recip();
         let master = params.master.clamp(0.0, 1.0) * 0.22;
+        let cutoff_hz = 40.0 * (18_000.0f32 / 40.0).powf(params.filter_cutoff.clamp(0.0, 1.0));
+        let filter_coeff = (1.0 - (-std::f32::consts::TAU * cutoff_hz / sr).exp()).clamp(0.0, 1.0);
         for voice in self.voices.iter_mut().filter(|v| v.active) {
             let base_hz = 440.0 * 2.0f32.powf((f32::from(voice.note) - 69.0) / 12.0);
             for i in 0..len {
@@ -133,7 +141,7 @@ impl PotionEngine {
                         break;
                     }
                 } else {
-                    voice.envelope = (voice.envelope + attack).min(1.0);
+                    voice.envelope = (voice.envelope + attack).min(params.sustain.clamp(0.0, 1.0));
                 }
                 let mut l = 0.0;
                 let mut r = 0.0;
@@ -154,9 +162,11 @@ impl PotionEngine {
                     l += sample * lg;
                     r += sample * rg;
                 }
+                voice.filter_left += filter_coeff * (l - voice.filter_left);
+                voice.filter_right += filter_coeff * (r - voice.filter_right);
                 let gain = voice.envelope * voice.velocity * master;
-                left[i] += l * gain;
-                right[i] += r * gain;
+                left[i] += voice.filter_left * gain;
+                right[i] += voice.filter_right * gain;
             }
         }
     }

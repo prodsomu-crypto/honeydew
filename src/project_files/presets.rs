@@ -50,7 +50,7 @@ pub const FLGSYNTH_EXT: &str = "flgsynth";
 /// The files a module of type `type_id` loads from its picker: its presets ([`crate::flm::read_preset`]: `.flmpst`, and
 /// MiniSynth's `.flms` or GMSynth's `.flgsynth`), and the files its loader names in its `CSTM` or `SF2D`
 /// ([`super::load_pick`]): a DW program `.dwp` or `.sfz`, or an audio file for the DW Sampler, an audio file for the Slicer
-/// and 3x Osc, a `.sf2` for the SoundFont Player; and 3x Osc's FL desktop
+/// and 3x Osc, a single-cycle audio wavetable for Potion, a `.sf2` for the SoundFont Player; and 3x Osc's FL desktop
 /// presets, `.fst` ([`super::import_fst`]).
 pub fn preset_exts(type_id: u16) -> &'static [&'static str] {
     match type_id {

@@ -401,7 +401,15 @@ pub fn show(state: &mut State, ui: &mut egui::Ui, app: &mut AppCtx) -> Option<Na
                 ui.collapsing("Freesound connection", |ui| {
                     ui.label("Your API key is kept in a private file on this device. It is not written to songs or ordinary Honeydew settings.");
                     ui.horizontal(|ui| {
-                        ui.add(egui::TextEdit::singleline(&mut state.api_key).password(true).hint_text("Freesound API key"));
+                        let mut key_edit = ui.add(
+                            egui::TextEdit::singleline(&mut state.api_key)
+                                .password(true)
+                                .desired_width(f32::INFINITY)
+                                .hint_text("Freesound API key"),
+                        );
+                        // NativeActivity key events do not carry Android IME composition or paste.
+                        // Route this field through Honeydew's native Android text editor.
+                        crate::android_text::edit(&mut key_edit, &mut state.api_key, 512);
                         if ui.button("Save key").clicked() {
                             match crate::settings::save_sounds_api_key(&state.api_key) {
                                 Ok(()) => state.status = "API key saved privately on this device.".into(),
@@ -419,7 +427,12 @@ pub fn show(state: &mut State, ui: &mut egui::Ui, app: &mut AppCtx) -> Option<Na
                 });
 
                 ui.horizontal(|ui| {
-                    ui.add(egui::TextEdit::singleline(&mut state.query).desired_width(f32::INFINITY).hint_text("Search kicks, piano loops, textures…"));
+                    let mut query_edit = ui.add(
+                        egui::TextEdit::singleline(&mut state.query)
+                            .desired_width(f32::INFINITY)
+                            .hint_text("Search kicks, piano loops, textures…"),
+                    );
+                    crate::android_text::edit(&mut query_edit, &mut state.query, 256);
                     let searching = state.search.is_some();
                     if ui.add_enabled(!searching && !state.query.trim().is_empty() && !state.api_key.trim().is_empty(), egui::Button::new(if searching { "Searching…" } else { "Search" })).clicked() {
                         state.page = 1;

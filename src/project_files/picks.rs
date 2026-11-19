@@ -46,7 +46,7 @@ fn named_file(name: &Path, type_id: u16) -> bool {
     let audio = is_audio(name);
     match type_id {
         DW_SAMPLER => audio || is(name, DWP_EXT) || is(name, super::SFZ_EXT),
-        SLICER | THREE_OSC => audio,
+        SLICER | THREE_OSC | 53 => audio,
         SOUNDFONT_PLAYER => is_soundfont(name),
         _ => false,
     }

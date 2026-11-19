@@ -9,7 +9,10 @@ use std::sync::mpsc::{Receiver, TryRecvError};
 use eframe::egui;
 use honeydew_audio::device::AudioCommand;
 
-use super::{AppCtx, Nav, sample_picker};
+use super::sample_picker;
+use crate::audio_link::AudioLink;
+use crate::project_files::ProjectFiles;
+use crate::ui::UiCtx;
 use crate::content::sounds::{Category, SoundAsset};
 use crate::ui::preset_picker::{PickerAction, PresetPicker};
 
@@ -31,7 +34,7 @@ struct PreviewReady {
 }
 
 #[cfg(not(any(target_arch = "wasm32", target_os = "ios")))]
-type SearchResult = Result<(u64, Vec<SoundAsset>), String>;
+type SearchResult = Result<(u64, usize, Vec<SoundAsset>), String>;
 #[cfg(not(any(target_arch = "wasm32", target_os = "ios")))]
 type PreviewResult = Result<PreviewReady, String>;
 
@@ -63,21 +66,21 @@ pub struct State {
 }
 
 impl State {
-    pub(super) fn stop_sample(&mut self, app: &mut AppCtx) {
+    pub(super) fn stop_sample(&mut self, audio: &mut AudioLink) {
         #[cfg(not(any(target_arch = "wasm32", target_os = "ios")))]
         if self.playing {
-            app.audio.send(AudioCommand::Preview(None));
+            audio.send(AudioCommand::Preview(None));
             self.playing = false;
         }
         if let Some(picker) = &mut self.local_picker {
             picker.stop_sample();
-            sample_picker::preview(picker, app.audio);
+            sample_picker::preview(picker, audio);
         }
     }
 
-    pub(super) fn leave(&mut self, app: &mut AppCtx) {
-        self.stop_sample(app);
-        self.close_local(app);
+    pub(super) fn leave(&mut self, files: &mut ProjectFiles, audio: &mut AudioLink) {
+        self.stop_sample(audio);
+        self.close_local(files, audio);
         #[cfg(not(any(target_arch = "wasm32", target_os = "ios")))]
         {
             self.search = None;
@@ -85,17 +88,17 @@ impl State {
         }
     }
 
-    fn close_local(&mut self, app: &mut AppCtx) {
+    fn close_local(&mut self, files: &mut ProjectFiles, audio: &mut AudioLink) {
         if let Some(picker) = &mut self.local_picker {
             picker.closing();
-            sample_picker::preview(picker, app.audio);
+            sample_picker::preview(picker, audio);
         }
         self.local_picker = None;
         self.local_loading = None;
         self.local_browser = false;
     }
 
-    fn poll_local(&mut self, app: &mut AppCtx) {
+    fn poll_local(&mut self, files: &mut ProjectFiles, audio: &mut AudioLink) {
         // Existing local sample picks use the same worker decode and waveform preview as Honeydew's other pickers.
         let local_result = self
             .local_loading
@@ -125,7 +128,7 @@ impl State {
             }
         }
         if let Some(picker) = &mut self.local_picker {
-            sample_picker::preview(picker, app.audio);
+            sample_picker::preview(picker, audio);
         }
     }
 
@@ -174,12 +177,13 @@ impl State {
                                 serde_json::from_slice(&bytes).map_err(|err| {
                                     format!("Could not read Freesound results: {err}")
                                 })?;
-                            let assets = response
-                                .results
+                            let page_results = response.results;
+                            let scanned = page_results.len();
+                            let assets = page_results
                                 .into_iter()
                                 .filter_map(|result| result.into_asset())
                                 .collect();
-                            Ok((response.count, assets))
+                            Ok((response.count, scanned, assets))
                         });
                         let _ = std::fs::remove_file(&path);
                         result
@@ -231,23 +235,27 @@ impl State {
     }
 
     #[cfg(not(any(target_arch = "wasm32", target_os = "ios")))]
-    fn poll_workers(&mut self, app: &mut AppCtx) {
+    fn poll_workers(&mut self, audio: &mut AudioLink) {
         let search_result = self.search.as_ref().map(|search| search.try_recv());
         if let Some(result) = search_result {
             match result {
-                Ok(Ok((count, results))) => {
+                Ok(Ok((count, scanned, results))) => {
                     self.search = None;
                     self.total = count;
+                    let accepted = results.len();
                     self.results.extend(results);
                     if self.selected.is_none() {
                         self.selected = (!self.results.is_empty()).then_some(0);
                     }
-                    self.status = if self.results.is_empty() {
-                        "No reusable previews matched. Try a broader search.".into()
+                    self.status = if scanned == 0 {
+                        "No sounds matched that search. Try broader terms.".into()
+                    } else if accepted == 0 {
+                        format!(
+                            "Freesound returned {scanned} results, but none passed Honeydew's supported-licence and secure-preview checks. Only CC0, CC BY and CC BY-NC sounds with usable previews are shown."
+                        )
                     } else {
                         format!(
-                            "{} reusable results on this page · licences are shown per sound",
-                            self.results.len()
+                            "Showing {accepted} reusable sounds · {scanned} checked on this page · licences shown per sound"
                         )
                     };
                 }
@@ -279,7 +287,7 @@ impl State {
             match result {
                 Ok(ready) => {
                     let sample = Arc::new(ready.sample);
-                    app.audio.send(AudioCommand::Preview(Some((sample, 0))));
+                    audio.send(AudioCommand::Preview(Some((sample, 0))));
                     self.playing = true;
                     self.cached_preview = Some((id, ready.bytes, ready.extension));
                     self.status =
@@ -315,252 +323,227 @@ fn preview_extension(url: &str) -> &'static str {
 }
 
 /// Shows Honeydew Sounds over the editor. Search/download/decode work is asynchronous on native and Android builds.
-pub fn show(state: &mut State, ui: &mut egui::Ui, app: &mut AppCtx) -> Option<Nav> {
+pub fn show_in_panel(
+    state: &mut State,
+    ui: &mut egui::Ui,
+    cx: &UiCtx<'_>,
+    files: &mut ProjectFiles,
+    audio: &mut AudioLink,
+) {
     let ctx = ui.ctx().clone();
 
     if state.local_browser {
         let mut back = false;
-        let at = ctx.content_rect().left_top() + egui::vec2(14.0, 14.0);
-        egui::Area::new(egui::Id::new("honeydew_sounds_local_header"))
-            .order(egui::Order::Foreground)
-            .fixed_pos(at)
-            .show(&ctx, |ui| {
-                ui.horizontal(|ui| {
-                    back = ui.button("← Honeydew Sounds").clicked();
-                    ui.label("Your installed sounds · My Samples · My Recordings");
-                });
-            });
+        ui.horizontal(|ui| {
+            back = ui.button("← Honeydew Sounds").clicked();
+            ui.label("Your installed sounds · My Samples · My Recordings");
+        });
+        ui.separator();
         if back {
-            state.close_local(app);
+            state.close_local(files, audio);
         } else {
             let action = if let Some(picker) = &mut state.local_picker {
-                let library = app.files.sample_library();
-                picker.show(&ctx, &app.cx, &*library)
+                let library = files.sample_library();
+                picker.show(&ctx, cx, &*library)
             } else {
-                state.local_picker = Some(sample_picker::picker(app.files));
+                state.local_picker = Some(sample_picker::picker(files));
                 None
             };
             match action {
                 Some(PickerAction::Pick(path)) => {
                     state.local_loading =
-                        Some((path.clone(), sample_picker::decode_file(app.files, &path)));
+                        Some((path.clone(), sample_picker::decode_file(files, &path)));
                 }
                 Some(PickerAction::Import) => {
-                    if let Some(user) = app.files.user_dir().map(Path::to_owned) {
-                        app.files
-                            .import_audio(user.join(crate::project_files::SAMPLES_FOLDER));
+                    if let Some(user) = files.user_dir().map(Path::to_owned) {
+                        files.import_audio(user.join(crate::project_files::SAMPLES_FOLDER));
                     }
                 }
-                Some(PickerAction::Close) => state.close_local(app),
+                Some(PickerAction::Close) => state.close_local(files, audio),
                 _ => {}
             }
-            state.poll_local(app);
+            state.poll_local(files, audio);
             #[cfg(not(any(target_arch = "wasm32", target_os = "ios")))]
-            state.poll_workers(app);
-            return None;
+            state.poll_workers(audio);
+            return;
         }
     }
-
     #[cfg(not(any(target_arch = "wasm32", target_os = "ios")))]
     {
         if !state.key_loaded {
             state.api_key = crate::settings::load_sounds_api_key().unwrap_or_default();
             state.key_loaded = true;
         }
-        state.poll_workers(app);
+        state.poll_workers(audio);
     }
-    state.poll_local(app);
+    state.poll_local(files, audio);
     #[cfg(not(any(target_arch = "wasm32", target_os = "ios")))]
     if state.search.is_some() || state.preview.is_some() {
         ctx.request_repaint_after(std::time::Duration::from_millis(120));
     }
 
-    // A dock-like browser panel, matching the side-by-side workflow of mobile DAWs.
-    let screen = ctx.content_rect();
-    let width = if screen.width() < screen.height() {
-        screen.width()
-    } else {
-        (screen.width() * 0.44).clamp(300.0, 480.0).min(screen.width())
-    };
-    let mut open = true;
-    egui::Window::new("Honeydew Sounds")
-        .id(egui::Id::new("honeydew_sounds_window"))
-        .open(&mut open)
-        .collapsible(false)
-        .resizable(false)
-        .fixed_pos(egui::pos2(screen.right() - width, screen.top()))
-        .fixed_size(egui::vec2(width, screen.height()))
-        .show(&ctx, |ui| {
-            ui.horizontal_wrapped(|ui| {
-                ui.label(egui::RichText::new("Find sounds. Preview them. Bring them into your project.").strong());
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.button("Browse installed sounds").clicked() {
-                        state.stop_sample(app);
-                        state.local_picker = Some(sample_picker::picker(app.files));
-                        state.local_browser = true;
-                    }
-                });
-            });
-            ui.separator();
-
-            #[cfg(not(any(target_arch = "wasm32", target_os = "ios")))]
-            {
-                ui.collapsing("Freesound connection", |ui| {
-                    ui.label("Your API key is kept in a private file on this device. It is not written to songs or ordinary Honeydew settings.");
-                    ui.horizontal(|ui| {
-                        let mut key_edit = ui.add(
-                            egui::TextEdit::singleline(&mut state.api_key)
-                                .password(true)
-                                .desired_width(f32::INFINITY)
-                                .hint_text("Freesound API key"),
-                        );
-                        // NativeActivity key events do not carry Android IME composition or paste.
-                        // Route this field through Honeydew's native Android text editor.
-                        crate::android_text::edit(&mut key_edit, &mut state.api_key, 512);
-                        if ui.button("Save key").clicked() {
-                            match crate::settings::save_sounds_api_key(&state.api_key) {
-                                Ok(()) => state.status = "API key saved privately on this device.".into(),
-                                Err(err) => state.status = format!("Could not save API key: {err}"),
-                            }
-                        }
-                        if ui.button("Forget").clicked() {
-                            state.api_key.clear();
-                            match crate::settings::save_sounds_api_key("") {
-                                Ok(()) => state.status = "Saved API key removed from this device.".into(),
-                                Err(err) => state.status = format!("Could not remove API key: {err}"),
-                            }
-                        }
-                    });
-                });
-
-                ui.horizontal(|ui| {
-                    let mut query_edit = ui.add(
-                        egui::TextEdit::singleline(&mut state.query)
-                            .desired_width(f32::INFINITY)
-                            .hint_text("Search kicks, piano loops, textures…"),
-                    );
-                    crate::android_text::edit(&mut query_edit, &mut state.query, 256);
-                    let searching = state.search.is_some();
-                    if ui.add_enabled(!searching && !state.query.trim().is_empty() && !state.api_key.trim().is_empty(), egui::Button::new(if searching { "Searching…" } else { "Search" })).clicked() {
-                        state.page = 1;
-                        state.begin_search();
-                    }
-                });
+    ui.horizontal_wrapped(|ui| {
+        ui.label(egui::RichText::new("Find sounds. Preview them. Bring them into your project.").strong());
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            if ui.button("Browse installed sounds").clicked() {
+                state.stop_sample(audio);
+                state.local_picker = Some(sample_picker::picker(files));
+                state.local_browser = true;
             }
-            #[cfg(any(target_arch = "wasm32", target_os = "ios"))]
-            {
-                ui.label("Online catalogue search is not enabled in this build. Your installed and imported sounds remain available below.");
-            }
+        });
+    });
+    ui.separator();
 
-            ui.horizontal_wrapped(|ui| {
-                for (label, category) in [
-                    ("All", None),
-                    ("Drums", Some(Category::Drums)),
-                    ("Loops", Some(Category::Loops)),
-                    ("Vocals", Some(Category::Vocals)),
-                    ("Instruments", Some(Category::Instruments)),
-                    ("FX", Some(Category::Fx)),
-                    ("Textures", Some(Category::Textures)),
-                ] {
-                    if ui.selectable_label(state.category == category, label).clicked() {
-                        state.category = category;
-                    }
-                }
-            });
-            ui.separator();
-
-            let mut selected = None;
-            egui::ScrollArea::vertical().max_height(ui.available_height().max(120.0)).show(ui, |ui| {
-                let visible: Vec<(usize, SoundAsset)> = state.results.iter().cloned().enumerate()
-                    .filter(|(_, asset)| state.category.is_none_or(|category| asset.category == category))
-                    .collect();
-                if visible.is_empty() {
-                    ui.label("Search Freesound to see CC0, CC BY and CC BY-NC previews. Unknown and no-derivatives licences are filtered out.");
-                }
-                for (index, asset) in visible {
-                    let is_selected = state.selected == Some(index);
-                    let response = ui.group(|ui| {
-                        if ui.selectable_label(is_selected, &asset.title).clicked() {
-                            selected = Some(index);
-                        }
-                        ui.horizontal_wrapped(|ui| {
-                            ui.weak(format!("{} · {}", asset.creator, category_name(asset.category)));
-                            ui.weak(asset.accepted_license().map_or("Licence unavailable", |l| l.label()));
-                            if let Some(seconds) = asset.duration_seconds {
-                                ui.weak(format!("{seconds:.1}s"));
-                            }
-                        });
-                    });
-                    response.response.on_hover_text(&asset.tags.join(", "));
-                }
-            });
-            if let Some(index) = selected {
-                state.selected = Some(index);
-            }
-
-            if let Some(asset) = state.selected.and_then(|index| state.results.get(index)).cloned() {
-                ui.separator();
-                ui.label(egui::RichText::new(&asset.title).heading());
-                ui.label(format!("{} · {} · {}", asset.creator, category_name(asset.category), asset.accepted_license().map_or("Licence unavailable", |l| l.label())));
-                if asset.accepted_license().is_some_and(|license| license.is_non_commercial()) {
-                    ui.colored_label(ui.visuals().warn_fg_color, "Non-commercial licence: personal-use projects only.");
-                }
-                ui.horizontal_wrapped(|ui| {
-                    #[cfg(not(any(target_arch = "wasm32", target_os = "ios")))]
-                    {
-                        if ui.button("Preview").clicked() {
-                            state.stop_sample(app);
-                            state.begin_preview(&asset);
-                        }
-                        let preview_ready = state.cached_preview.as_ref().is_some_and(|(id, _, _)| id == &asset.id);
-                        if ui.add_enabled(preview_ready, egui::Button::new("Import preview to My Samples")).clicked() {
-                            if let Some((id, bytes, extension)) = state.cached_preview.take() {
-                                if id == asset.id {
-                                    let license = asset.accepted_license().map_or("Unknown", |l| l.label());
-                                    let attribution = format!(
-                                        "Title: {}\nCreator: {}\nSource: {}\nLicence: {}\nLicence URL: {}\nHoneydew Sounds / Freesound preview copy.\n",
-                                        asset.title,
-                                        asset.creator,
-                                        asset.page_url,
-                                        license,
-                                        asset.license_url.as_deref().unwrap_or("Not supplied"),
-                                    );
-                                    match app.files.keep_downloaded_sound(&asset.title, &extension, bytes, &attribution) {
-                                        Ok(path) => state.status = format!("Imported to My Samples: {}", path.file_name().unwrap_or_default().to_string_lossy()),
-                                        Err(err) => state.status = format!("Import failed: {err}"),
-                                    }
-                                }
-                            }
-                        }
-                        if state.playing && ui.button("Stop preview").clicked() {
-                            state.stop_sample(app);
-                        }
-                    }
-                    let _ = ui.hyperlink_to("Open source page ↗", &asset.page_url);
-                });
-            }
-
-            ui.separator();
-            ui.label(&state.status);
+    #[cfg(not(any(target_arch = "wasm32", target_os = "ios")))]
+    {
+        ui.collapsing("Freesound connection", |ui| {
+            ui.label("Your API key is kept in a private file on this device. It is not written to songs or ordinary Honeydew settings.");
             ui.horizontal(|ui| {
-                ui.label(format!("Page {} · {} provider results", state.page, state.total));
-                #[cfg(not(any(target_arch = "wasm32", target_os = "ios")))]
-                {
-                    let searching = state.search.is_some();
-                    if ui.add_enabled(!searching && (state.page as u64) * u64::from(SEARCH_PAGE_SIZE) < state.total, egui::Button::new("Load more")).clicked() {
-                        state.page += 1;
-                        state.begin_search();
+                let mut key_edit = ui.add(
+                    egui::TextEdit::singleline(&mut state.api_key)
+                        .password(true)
+                        .desired_width(f32::INFINITY)
+                        .hint_text("Freesound API key"),
+                );
+                // NativeActivity key events do not carry Android IME composition or paste.
+                // Route this field through Honeydew's native Android text editor.
+                crate::android_text::edit(&mut key_edit, &mut state.api_key, 512);
+                if ui.button("Save key").clicked() {
+                    match crate::settings::save_sounds_api_key(&state.api_key) {
+                        Ok(()) => state.status = "API key saved privately on this device.".into(),
+                        Err(err) => state.status = format!("Could not save API key: {err}"),
+                    }
+                }
+                if ui.button("Forget").clicked() {
+                    state.api_key.clear();
+                    match crate::settings::save_sounds_api_key("") {
+                        Ok(()) => state.status = "Saved API key removed from this device.".into(),
+                        Err(err) => state.status = format!("Could not remove API key: {err}"),
                     }
                 }
             });
         });
 
-    if !open {
-        state.stop_sample(app);
-        state.close_local(app);
-        return Some(Nav::Close);
+        ui.horizontal(|ui| {
+            let mut query_edit = ui.add(
+                egui::TextEdit::singleline(&mut state.query)
+                    .desired_width(f32::INFINITY)
+                    .hint_text("Search kicks, piano loops, textures…"),
+            );
+            crate::android_text::edit(&mut query_edit, &mut state.query, 256);
+            let searching = state.search.is_some();
+            if ui.add_enabled(!searching && !state.query.trim().is_empty() && !state.api_key.trim().is_empty(), egui::Button::new(if searching { "Searching…" } else { "Search" })).clicked() {
+                state.page = 1;
+                state.begin_search();
+            }
+        });
     }
-    None
+    #[cfg(any(target_arch = "wasm32", target_os = "ios"))]
+    {
+        ui.label("Online catalogue search is not enabled in this build. Your installed and imported sounds remain available below.");
+    }
+
+    ui.horizontal_wrapped(|ui| {
+        for (label, category) in [
+            ("All", None),
+            ("Drums", Some(Category::Drums)),
+            ("Loops", Some(Category::Loops)),
+            ("Vocals", Some(Category::Vocals)),
+            ("Instruments", Some(Category::Instruments)),
+            ("FX", Some(Category::Fx)),
+            ("Textures", Some(Category::Textures)),
+        ] {
+            if ui.selectable_label(state.category == category, label).clicked() {
+                state.category = category;
+            }
+        }
+    });
+    ui.separator();
+
+    let mut selected = None;
+    egui::ScrollArea::vertical().max_height(ui.available_height().max(120.0)).show(ui, |ui| {
+        let visible: Vec<(usize, SoundAsset)> = state.results.iter().cloned().enumerate()
+            .filter(|(_, asset)| state.category.is_none_or(|category| asset.category == category))
+            .collect();
+        if visible.is_empty() {
+            ui.label("Search Freesound to see CC0, CC BY and CC BY-NC previews. Unknown and no-derivatives licences are filtered out.");
+        }
+        for (index, asset) in visible {
+            let is_selected = state.selected == Some(index);
+            let response = ui.group(|ui| {
+                if ui.selectable_label(is_selected, &asset.title).clicked() {
+                    selected = Some(index);
+                }
+                ui.horizontal_wrapped(|ui| {
+                    ui.weak(format!("{} · {}", asset.creator, category_name(asset.category)));
+                    ui.weak(asset.accepted_license().map_or("Licence unavailable", |l| l.label()));
+                    if let Some(seconds) = asset.duration_seconds {
+                        ui.weak(format!("{seconds:.1}s"));
+                    }
+                });
+            });
+            response.response.on_hover_text(&asset.tags.join(", "));
+        }
+    });
+    if let Some(index) = selected {
+        state.selected = Some(index);
+    }
+
+    if let Some(asset) = state.selected.and_then(|index| state.results.get(index)).cloned() {
+        ui.separator();
+        ui.label(egui::RichText::new(&asset.title).heading());
+        ui.label(format!("{} · {} · {}", asset.creator, category_name(asset.category), asset.accepted_license().map_or("Licence unavailable", |l| l.label())));
+        if asset.accepted_license().is_some_and(|license| license.is_non_commercial()) {
+            ui.colored_label(ui.visuals().warn_fg_color, "Non-commercial licence: personal-use projects only.");
+        }
+        ui.horizontal_wrapped(|ui| {
+            #[cfg(not(any(target_arch = "wasm32", target_os = "ios")))]
+            {
+                if ui.button("Preview").clicked() {
+                    state.stop_sample(audio);
+                    state.begin_preview(&asset);
+                }
+                let preview_ready = state.cached_preview.as_ref().is_some_and(|(id, _, _)| id == &asset.id);
+                if ui.add_enabled(preview_ready, egui::Button::new("Import preview to My Samples")).clicked() {
+                    if let Some((id, bytes, extension)) = state.cached_preview.take() {
+                        if id == asset.id {
+                            let license = asset.accepted_license().map_or("Unknown", |l| l.label());
+                            let attribution = format!(
+                                "Title: {}\nCreator: {}\nSource: {}\nLicence: {}\nLicence URL: {}\nHoneydew Sounds / Freesound preview copy.\n",
+                                asset.title,
+                                asset.creator,
+                                asset.page_url,
+                                license,
+                                asset.license_url.as_deref().unwrap_or("Not supplied"),
+                            );
+                            match files.keep_downloaded_sound(&asset.title, &extension, bytes, &attribution) {
+                                Ok(path) => state.status = format!("Imported to My Samples: {}", path.file_name().unwrap_or_default().to_string_lossy()),
+                                Err(err) => state.status = format!("Import failed: {err}"),
+                            }
+                        }
+                    }
+                }
+                if state.playing && ui.button("Stop preview").clicked() {
+                    state.stop_sample(audio);
+                }
+            }
+            let _ = ui.hyperlink_to("Open source page ↗", &asset.page_url);
+        });
+    }
+
+    ui.separator();
+    ui.label(&state.status);
+    ui.horizontal(|ui| {
+        ui.label(format!("Page {} · {} provider results", state.page, state.total));
+        #[cfg(not(any(target_arch = "wasm32", target_os = "ios")))]
+        {
+            let searching = state.search.is_some();
+            if ui.add_enabled(!searching && (state.page as u64) * u64::from(SEARCH_PAGE_SIZE) < state.total, egui::Button::new("Load more")).clicked() {
+                state.page += 1;
+                state.begin_search();
+            }
+        }
+    });
 }
 
 fn category_name(category: Category) -> &'static str {

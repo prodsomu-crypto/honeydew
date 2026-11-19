@@ -1,64 +1,44 @@
-# Potion — Android Wavetable Synthesizer
+# Potion — Android Wavetable Synth
 
-## Goal
+Potion is a first-party Honeydew rack instrument (module type 53). It is a native Honeydew audio-engine instrument, not a standalone CLAP/VST plugin and not a desktop plugin-host dependency.
 
-Build a first-party Honeydew instrument for Android with a touch-first workflow and a feature set informed by Vital and Serum 2. This is an original implementation: no copied UI, source code, presets, factory wavetables, or proprietary assets from either product.
+## Implemented in the current branch
 
-The synth is a native Honeydew instrument (not a desktop plugin host dependency), so it runs in the Android audio engine and its parameters are saved with the song.
+### Oscillators and tables
+- Three independently enabled oscillators with level, pan, semitone pitch and wavetable position controls.
+- Factory morph bank: sine, triangle, saw and square. When a custom source is loaded, its imported cycle is appended as a fifth frame.
+- Wavetable frame interpolation and FFT-derived mip levels for frequency-dependent anti-aliasing.
+- Import of one audio file as a single-cycle table using the module's WAV table picker. WAV, FLAC, OGG and MP3 are listed by the picker; the existing audio decoder averages stereo and resamples the beginning of the file into one periodic cycle. The imported cycle is selected by moving that oscillator's Wave Morph control to the end of its range.
+- The source path is stored in module CSTM data and the table is prepared through Honeydew's sample cache before the engine is built.
 
-## Feature targets
+### Voice, filter and performance
+- Up to 32 voices, with user-selectable polyphony, plus poly, mono and legato modes.
+- Per-oscillator unison up to seven voices, detune and stereo spread.
+- Glide, pitch bend, host aftertouch, mod wheel and host slide offsets.
+- Amp attack, decay, sustain and release.
+- A state-variable filter with low-pass, band-pass and high-pass modes, resonance, key tracking and envelope modulation.
+- Sub oscillator and seeded noise source.
+- Two free-running LFOs (sine, triangle or square) with pitch, filter or pan destinations.
+- Four modulation routes. Sources are LFO 1, LFO 2, amp envelope, velocity, mod wheel or aftertouch. Destinations are pitch, filter, pan or oscillator 1/2/3 level.
+- Oscillator 2 frequency-modulates oscillator 1; a ring-modulation blend and three basic warp modes (bend, fold and phase remap) are provided.
 
-### Wavetable voice engine
-- Three independently enabled wavetable oscillators with frame position, pitch, phase, level, pan, unison, detune, stereo spread and per-oscillator routing.
-- High-quality band-limited wavetable playback, frame interpolation, mip levels and anti-aliasing.
-- Wavetable import/export, table browsing, frame editing, drawing and harmonic editing.
-- Wave and spectral warp families, including bend, sync, mirror/fold, quantize, phase, formant and harmonic/spectral operations.
-- Oscillator cross-modulation: FM, phase modulation, ring/amplitude modulation and hard sync, with clear CPU-cost controls.
-- Sub oscillator and noise source.
+### UI and presets
+- A dedicated touch-friendly rack editor with oscillator, table import, filter, envelope, modulation, voice, mix and matrix pages.
+- Native Honeydew module parameters remain the source of truth, so normal project save/undo/automation and module preset flows continue to apply.
+- Module presets use Honeydew's `.flmpst` format. Imported audio files are referenced from the module's CSTM path; keep the original file available when moving a song or preset to another device.
 
-### Voice, filters and modulation
-- Poly, mono and legato modes; configurable voice limit, glide/portamento, velocity, pitch bend, aftertouch and MPE expression.
-- Multiple filter models with serial/parallel routing, key tracking and drive.
-- Flexible multi-stage envelopes with curves/tension and looping.
-- Editable tempo-synced/free-running LFOs, key tracking, one-shot and stereo split modes.
-- Touch-friendly modulation source/destination assignment on phones and tablets.
-- Modulation matrix with per-route amount, polarity, curve/remap and smoothing; audio-rate routing only where the DSP can safely support it.
-- Random and chaos modulation sources.
+## Current limitations
 
-### Sample-based synthesis and performance
-- Sample oscillator with loop, slice and modulation controls.
-- Multisample instrument support using SFZ as an open interchange format.
-- Granular playback and spectral/resynthesis modes as later engine modules.
-- Arpeggiator and phrase/clip sequencer.
-- Microtuning import (.tun, .scl, .kbm) and MPE support.
+- Audio import creates one single-cycle frame. It does not parse a multiframe wavetable container or a bank of frames from one file.
+- There is no drawing, harmonic editor, frame management UI, or table export yet.
+- The waveform graphic is a UI preview derived from the morph control; it is not a live oscilloscope or a live tap of DSP output.
+- The filter is one SVF per voice, not a dual-filter/serial/parallel routing section. Drive and additional filter models are not implemented.
+- LFOs are free-running; there is no tempo sync, one-shot mode, random/chaos source, route curve or dedicated modulation smoothing editor.
+- The warp choices are basic approximations, not a complete spectral/formant/harmonic warp suite.
+- Host pitch bend, channel aftertouch, mod wheel and slide are supported, but full MPE per-note expression is not.
+- Microtuning, arpeggiator/phrase sequencer, granular and spectral resynthesis, and an internal reorderable effects rack are not implemented in this branch.
+- Serum 1 `.fxp` and Serum 2 `.SerumPreset` import is not implemented. Preset compatibility is limited to Honeydew's native module preset format plus imported audio cycles; no Xfer factory content or proprietary preset decoding is bundled.
 
-### Effects, metering and preset workflow
-- Internal effects rack with reorderable routing, including distortion, chorus, phaser, delay, reverb, compressor and EQ.
-- Oscilloscope, spectrum and filter-response views designed for Android.
-- Preset browser with search, tags, favorites, categories, save/import/export and versioned native preset format.
-- Preset migration that reports unsupported or approximated features rather than silently substituting them.
+## Real-time and verification requirements
 
-## Implementation order
-
-1. **Core playable instrument:** three oscillators, band-limited wavetable playback, unison, pitch/level/pan, amp envelope, voice allocation, filter and native Honeydew parameter/song integration.
-2. **Sound design foundation:** wavetable import/export/editor, warp modes, dual filters, filter envelope, LFOs and modulation matrix.
-3. **Performance and polish:** MPE, microtuning, preset browser, visual meters and Android tablet/phone layouts.
-4. **Serum/Vital-adjacent synthesis modes:** sample, multisample/SFZ, granular and spectral engines; arpeggiator and phrase sequencer.
-5. **Internal effects rack and compatibility expansion:** effect routing, preset migration, CPU/memory profiling and device testing.
-
-Every stage must pass Android ARM64 build checks and audio-engine tests before the next stage is considered complete. Performance budgets will be measured on Android hardware; desktop results are not the acceptance target.
-
-## Serum preset compatibility
-
-Serum 1 presets commonly use VST2 .fxp chunks, while Serum 2 adds its own .SerumPreset format. Xfer has stated that the Serum preset encoding is not publicly documented. Therefore, full, lossless native loading cannot be promised up front.
-
-The compatibility strategy is:
-- First support interoperable assets such as wavetable WAV files and SFZ multisample definitions.
-- Investigate a legally and technically supportable importer for Serum 1 .fxp and Serum 2 .SerumPreset.
-- If a parser can be implemented and validated, map supported oscillator, envelope, filter, LFO, effect and modulation values into Honeydew's native patch format.
-- Clearly list missing dependencies (for example, external wavetables/noise samples) and features that cannot be mapped. Never claim a converted preset is identical when it is only an approximation.
-- Do not bundle Xfer factory content or bypass any product protection.
-
-## Android constraints
-
-The synth must be real-time safe: no allocation, file I/O, blocking locks or expensive table generation in the audio callback. Import, analysis, wavetable construction and preset parsing happen off the audio thread. The renderer uses fixed voice/resource limits, graceful quality settings and memory-aware caches suitable for phones and tablets.
+Wavetable construction, audio decoding and table preparation happen outside the audio callback. The renderer uses fixed voice storage and does not allocate, lock or perform file I/O while rendering. The Android ARM64 CI workflow is the build acceptance check; auditioning and CPU profiling on a physical Android device are still required before claiming device-wide performance validation.

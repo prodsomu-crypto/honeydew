@@ -462,25 +462,13 @@ impl PotionEngine {
                         if osc == 0 {
                             hz *= 2.0f32.powf(osc_out[1] * fm_amount * 2.0);
                         }
-                        let phase = voice.oscillators[osc][unison_index].phase();
-                        if warp_amount > 0.0 {
-                            let warped = match params.warp_mode.min(3) {
-                                1 => {
-                                    phase
-                                        + (std::f64::consts::TAU * phase).sin()
-                                            * f64::from(warp_amount)
-                                            * 0.12
-                                }
-                                3 => (phase * f64::from(1.0 + warp_amount * 7.0)).fract(),
-                                _ => phase,
-                            };
-                            voice.oscillators[osc][unison_index].set_phase(warped);
-                        }
-                        let mut sample = voice.oscillators[osc][unison_index].next_sample(
+                        let mut sample = voice.oscillators[osc][unison_index].next_sample_warped(
                             &self.tables[osc],
                             hz.clamp(1.0, sr * 0.45),
                             sr,
                             params.table_position[osc],
+                            params.warp_mode,
+                            warp_amount,
                         );
                         if params.warp_mode == 2 && warp_amount > 0.0 {
                             let drive = 1.0 + warp_amount * 7.0;

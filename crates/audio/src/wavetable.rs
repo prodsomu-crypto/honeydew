@@ -208,6 +208,21 @@ impl WavetableOscillator {
         sample_rate: f32,
         position: f32,
     ) -> f32 {
+        self.next_sample_warped(table, frequency_hz, sample_rate, position, 0, 0.0)
+    }
+
+    /// Reads through a phase remap while advancing the underlying oscillator normally. This keeps
+    /// warp movement from feeding back into the accumulator and drifting the oscillator's pitch.
+    #[inline]
+    pub fn next_sample_warped(
+        &mut self,
+        table: &Wavetable,
+        frequency_hz: f32,
+        sample_rate: f32,
+        position: f32,
+        warp_mode: u8,
+        warp_amount: f32,
+    ) -> f32 {
         if !frequency_hz.is_finite()
             || !sample_rate.is_finite()
             || frequency_hz <= 0.0
@@ -215,7 +230,16 @@ impl WavetableOscillator {
         {
             return 0.0;
         }
-        let out = table.sample(self.phase, position, frequency_hz, sample_rate);
+        let amount = warp_amount.clamp(0.0, 1.0);
+        let lookup_phase = match warp_mode.min(3) {
+            1 => {
+                self.phase
+                    + (std::f64::consts::TAU * self.phase).sin() * f64::from(amount) * 0.12
+            }
+            3 => (self.phase * f64::from(1.0 + amount * 7.0)).fract(),
+            _ => self.phase,
+        };
+        let out = table.sample(lookup_phase, position, frequency_hz, sample_rate);
         self.phase = wrap_phase(self.phase + f64::from(frequency_hz / sample_rate));
         out
     }
@@ -342,6 +366,15 @@ mod tests {
             Some(WavetableError::MismatchedFrameLength)
         );
     }
+    #[test]
+    fn phase_warp_does_not_change_the_oscillator_increment() {
+        let table = Wavetable::new(vec![sine(256)]).unwrap();
+        let mut osc = WavetableOscillator::new();
+        osc.set_phase(0.1);
+        let _ = osc.next_sample_warped(&table, 24_000.0, 48_000.0, 0.0, 3, 1.0);
+        assert!((osc.phase() - 0.6).abs() < 1.0e-9);
+    }
+
     #[test]
     fn spectral_frames_form_a_bounded_harmonic_scan_bank() {
         let cycle: Vec<f32> = (0..256)

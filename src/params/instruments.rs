@@ -1065,6 +1065,28 @@ const SOUNDFONT_PLAYER: &[P] = &[
     ),
 ];
 
+const POTION: &[P] = &[
+    P::ENABLE, // 0
+    P::plain("Osc 1 Level", 0.7), // 1
+    P::plain("Osc 2 Level", 0.35), // 2
+    P::plain("Osc 3 Level", 0.2), // 3
+    P::plain("Osc 1 Pan", 0.325), // 4
+    P::plain("Osc 2 Pan", 0.675), // 5
+    P::plain("Osc 3 Pan", 0.5), // 6
+    P::plain("Osc 1 Pitch", 0.5), // 7
+    P::plain("Osc 2 Pitch", 0.375), // 8
+    P::plain("Osc 3 Pitch", 0.25), // 9
+    P::plain("Osc 1 Table", 0.0), // 10
+    P::plain("Osc 2 Table", 0.0), // 11
+    P::plain("Osc 3 Table", 0.0), // 12
+    P::toggle("Osc 1 On", 1.0), // 13
+    P::toggle("Osc 2 On", 1.0), // 14
+    P::toggle("Osc 3 On", 1.0), // 15
+    P::plain("Attack", 0.34), // 16
+    P::plain("Release", 0.59), // 17
+    P::plain("Master", 0.7), // 18
+];
+
 pub static MODULES: &[ModuleSpec] = &[
     ModuleSpec::instrument(
         0,
@@ -1115,5 +1137,12 @@ pub static MODULES: &[ModuleSpec] = &[
         "SoundFont Player",
         SOUNDFONT_PLAYER,
         &[],
+    ),
+    ModuleSpec::instrument(
+        53,
+        "Potion",
+        "Potion",
+        POTION,
+        &["OSC 1", "OSC 2", "OSC 3", "ENVELOPE", "MASTER"],
     ),
 ];

@@ -188,7 +188,7 @@ pub fn panel() -> Option<Panel> {
 
 #[cfg(test)]
 pub const REFERENCE: Reference = Reference {
-    size: [16.96, 14.0],
+    size: [16.96, 16.0],
     settings: &[],
     cases: &[],
 };

@@ -1112,6 +1112,7 @@ const POTION: &[P] = &[
     P::plain("Velocity", 0.7),      // 43
     P::plain("Filter Env", 0.0),    // 44
     P::plain("Polyphony", 1.0),     // 45
+    P::toggle("Load WAV Table", 0.0), // 46: opens Potion's custom wavetable picker
 ];
 
 pub static MODULES: &[ModuleSpec] = &[

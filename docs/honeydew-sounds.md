@@ -28,6 +28,10 @@ Before wiring the browser into the UI, inspect the current sample picker and pro
 - Confirmed the existing `src/ui/views/sample_picker.rs` path already handles worker-thread decoding, waveform preview, and applying imported audio to pads, clips, and supported modules. Honeydew Sounds should hand downloaded files into that path rather than create another preview engine.
 - Not yet implemented: HTTP transport, local credential storage/settings UI, search UI, preview transport, download/cache, and playlist import. This is still a provider adapter foundation, not a usable browser.
 
+## UI alpha preview
+
+A standalone browser prototype is being used to review the Honeydew Sounds layout before it is wired into the app. It demonstrates the catalogue rows, search, category filters, selection details, licence messaging, and preview/import control states using clearly labelled demo entries. It makes no network requests and does not play or import audio; those remain app integration work.
+
 ## Phase 1 scope
 
 1. A dedicated **Honeydew Sounds** entry in the existing browser/navigation system.

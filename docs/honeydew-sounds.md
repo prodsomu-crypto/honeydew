@@ -21,7 +21,7 @@ Before wiring the browser into the UI, inspect the current sample picker and pro
 - Added `src/content/sounds.rs` with provider-neutral asset metadata, the six browser categories, CC0/CC-BY licence parsing, attribution formatting, and validation of provider metadata/HTTPS URLs.
 - Exposed the model as `crate::content::sounds`.
 - Added unit tests for licence eligibility, attribution, insecure URLs, and invalid duration metadata.
-- Licence parsing now recognizes the canonical Creative Commons CC0 and CC-BY 2.0/3.0/4.0 URLs returned by providers, as well as short identifiers; NC and ND variants remain rejected.
+- Licence parsing recognizes canonical Creative Commons CC0, CC-BY 2.0/3.0/4.0, and CC-BY-NC 2.0/3.0/4.0 URLs as well as short identifiers. NC assets are allowed for this personal-use project but always require attribution; ND variants remain excluded.
 - Confirmed the existing `src/ui/views/sample_picker.rs` path already handles worker-thread decoding, waveform preview, and applying imported audio to pads, clips, and supported modules. Honeydew Sounds should hand downloaded files into that path rather than create another preview engine.
 - Not yet implemented: provider API client, search UI, preview transport, download/cache, and playlist import. The model is a foundation, not a usable browser yet.
 
@@ -38,8 +38,8 @@ Before wiring the browser into the UI, inspect the current sample picker and pro
 ## Provider and licensing rules
 
 - Start with one provider behind a small provider interface; do not hardwire provider-specific JSON into UI code.
-- Freesound is a candidate first provider, subject to confirming its current API authentication requirements and terms before implementation.
-- Initially include only assets whose licence clearly permits the intended use. Prefer CC0 for the first pass; do not silently treat every free-to-download file as royalty-free or commercially reusable.
+- Freesound is the selected first provider. Its API is documented as free for non-commercial use, requires an API credential for search, and exposes preview URLs without OAuth2; original-quality downloads require OAuth2. The app must use a locally configured user API key, never a key committed to source or embedded as a shared secret.
+- Because this is a personal-use project, include CC0, CC-BY, and CC-BY-NC assets. Preserve attribution for both BY variants and clearly label NC assets as non-commercial. Continue rejecting ND and unknown licences; a free download is not automatically unrestricted.
 - Preserve the provider's canonical asset URL, creator attribution, licence identifier/URL, and any required attribution text.
 - Never scrape provider pages or bypass API limits/authentication. Keep API credentials out of source control and avoid shipping a private secret in the app binary.
 - If a provider's API key cannot safely be used by a standalone client, make the provider configurable or choose a source with a suitable public API rather than embedding a secret.
@@ -63,7 +63,7 @@ Before wiring the browser into the UI, inspect the current sample picker and pro
 
 ## Suggested implementation sequence
 
-1. Confirm provider API/authentication and the exact licence filter; write provider metadata types and tests. (The shared metadata and licence checks are in place; provider selection/authentication remains open.)
+1. Confirm provider API/authentication and the exact licence filter; write provider metadata types and tests. (Freesound is selected; metadata/licence model is in place. Search requires a user-configured API credential; preview audio can be fetched without OAuth2.)
 2. Add a provider client with pagination, search, category mapping, cancellation, and bounded responses.
 3. Add a user-owned cache with metadata persistence, atomic downloads, and offline listing.
 4. Build the browser using Honeydew's existing side-panel/search/preview conventions.

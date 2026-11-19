@@ -1076,17 +1076,17 @@ const POTION: &[P] = &[
     P::plain("Osc 1 Pitch", 0.5),   // 7
     P::plain("Osc 2 Pitch", 0.375), // 8
     P::plain("Osc 3 Pitch", 0.25),  // 9
-    P::plain("Osc 1 Wave", 0.0), // 10
-    P::plain("Osc 2 Wave", 0.0), // 11
-    P::plain("Osc 3 Wave", 0.0), // 12
-    P::toggle("Osc 1 On", 1.0), // 13
-    P::toggle("Osc 2 On", 1.0), // 14
-    P::toggle("Osc 3 On", 1.0), // 15
-    P::plain("Attack", 0.2562), // 16
-    P::plain("Release", 0.5531), // 17
-    P::plain("Master", 0.7), // 18
+    P::plain("Osc 1 Wave", 0.0),    // 10
+    P::plain("Osc 2 Wave", 0.0),    // 11
+    P::plain("Osc 3 Wave", 0.0),    // 12
+    P::toggle("Osc 1 On", 1.0),     // 13
+    P::toggle("Osc 2 On", 1.0),     // 14
+    P::toggle("Osc 3 On", 1.0),     // 15
+    P::plain("Attack", 0.2562),     // 16
+    P::plain("Release", 0.5531),    // 17
+    P::plain("Master", 0.7),        // 18
     P::plain("Filter Cutoff", 1.0), // 19
-    P::plain("Sustain", 0.8), // 20
+    P::plain("Sustain", 0.8),       // 20
 ];
 
 pub static MODULES: &[ModuleSpec] = &[

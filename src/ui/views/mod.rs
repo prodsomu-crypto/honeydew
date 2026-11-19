@@ -49,6 +49,7 @@ pub mod tempo_editor;
 mod wrap;
 // The fine tune dialog.
 pub mod fine_tune;
+pub mod honeydew_sounds;
 // The `Sound credits` screen.
 pub mod credits;
 // The What's New dialog.
@@ -685,6 +686,9 @@ impl Slots {
         if !(overlays.iter()).any(|o| matches!(o, Overlay::SoundFontPicker { .. })) {
             soundfont_picker::stop(&mut self.soundfont_picker, app.audio);
         }
+        if !(overlays.iter()).any(|o| matches!(o, Overlay::HoneydewSounds)) {
+            self.honeydew_sounds.leave(app);
+        }
         let top = overlays.len().saturating_sub(1);
         self.rack.full = overlays.iter().find_map(|o| match o {
             Overlay::LemonEditor { channel, module }
@@ -829,6 +833,14 @@ impl Slots {
             Overlay::MidiImport => midi_import::show(&mut self.midi_import, ui, app),
             // Modal like the Save dialog: hidden while a message shows over it, which draws in the same layer.
             Overlay::Credits => top.then(|| credits::show(&mut self.credits, ui, app))?,
+            Overlay::HoneydewSounds => {
+                if top {
+                    honeydew_sounds::show(&mut self.honeydew_sounds, ui, app)
+                } else {
+                    self.honeydew_sounds.stop_sample(app);
+                    None
+                }
+            }
             // Modal like the Save dialog: hidden while a message shows over it.
             Overlay::WhatsNew => top.then(|| whats_new::show(&mut self.whats_new, ui, app))?,
             Overlay::CcPicker(channel) => cc_picker::show(&mut self.cc_picker, ui, app, *channel),

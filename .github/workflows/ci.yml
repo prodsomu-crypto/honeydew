@@ -60,6 +60,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: tools/content-build
+      - name: System libraries
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libxkbcommon-dev libwayland-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libclang-dev
       - run: cargo test --manifest-path tools/content-build/Cargo.toml
 
   native-multicore:

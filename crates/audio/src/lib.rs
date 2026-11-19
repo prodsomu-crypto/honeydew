@@ -47,6 +47,7 @@ mod tape_stop;
 pub mod three_osc;
 pub mod transistor_bass;
 pub mod voice;
+pub mod wavetable;
 pub mod wav_writer;
 pub mod waveshaper;
 

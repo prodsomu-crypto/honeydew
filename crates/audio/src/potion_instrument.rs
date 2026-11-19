@@ -36,7 +36,9 @@ impl PotionInstrument {
         let saw = (0..size)
             .map(|i| {
                 let phase = std::f32::consts::TAU * i as f32 / size as f32;
-                (1..128).map(|h| (phase * h as f32).sin() / h as f32).sum::<f32>()
+                (1..128)
+                    .map(|h| (phase * h as f32).sin() / h as f32)
+                    .sum::<f32>()
                     * (2.0 / std::f32::consts::PI)
             })
             .collect::<Vec<_>>();

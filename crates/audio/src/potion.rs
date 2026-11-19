@@ -637,6 +637,27 @@ mod tests {
     }
 
     #[test]
+    fn tempo_synced_lfo_tracks_host_and_free_lfo_keeps_running() {
+        let t = table();
+        let mut engine = PotionEngine::new(48_000.0, [t.clone(), t.clone(), t]);
+        let mut params = PotionParams::default();
+        params.lfo_sync = [true, false];
+        engine.note_on(69, 1.0);
+        let mut left = vec![0.0; 256];
+        let mut right = left.clone();
+        engine.render_with_transport(
+            &mut left,
+            &mut right,
+            &params,
+            120.0,
+            3.0,
+            true,
+        );
+        assert_eq!(engine.voices[0].lfo_phase[0], 0.0);
+        assert!(engine.voices[0].lfo_phase[1] > 0.0);
+    }
+
+    #[test]
     fn renders_a_note_and_releases_it() {
         let t = table();
         let mut engine = PotionEngine::new(48_000.0, [t.clone(), t.clone(), t]);
@@ -713,5 +734,12 @@ mod tests {
             engine.render(&mut left, &mut right, &params);
             assert!(left.iter().chain(&right).all(|v| v.is_finite()));
         }
+        let mut params = PotionParams::default();
+        params.filter_notch = true;
+        params.filter_resonance = 0.95;
+        let mut left = vec![0.0; 512];
+        let mut right = left.clone();
+        engine.render(&mut left, &mut right, &params);
+        assert!(left.iter().chain(&right).all(|v| v.is_finite()));
     }
 }

@@ -267,6 +267,14 @@ mod tests {
         instrument.set_parameter(67, 0.5);
         instrument.set_controller(4, 1.0);
         assert!((instrument.params.pitch_bend - 12.5).abs() < 1.0e-6);
+        instrument.set_parameter(23, 0.5);
+        instrument.set_parameter(31, 0.5);
+        instrument.set_parameter(48, 0.8);
+        instrument.set_parameter(70, 1.0);
+        assert_eq!(instrument.params.filter_mode, 1);
+        assert_eq!(instrument.params.lfo_destination[0], 1);
+        assert_eq!(instrument.params.mod_destination[0], 4);
+        assert!(instrument.params.filter_notch);
         instrument.set_parameter(63, 1.0);
         instrument.set_parameter(64, 1.0);
         assert!(instrument.params.lfo_sync[0]);

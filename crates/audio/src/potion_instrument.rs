@@ -135,7 +135,7 @@ impl Instrument for PotionInstrument {
             47..=58 => {
                 let route = (index - 47) / 3;
                 match (index - 47) % 3 {
-                    0 => self.params.mod_source[route] = (value * 3.0).round() as u8,
+                    0 => self.params.mod_source[route] = (value * 5.0).round() as u8,
                     1 => self.params.mod_destination[route] = (value * 5.0).round() as u8,
                     _ => self.params.mod_amount[route] = value * 2.0 - 1.0,
                 }
@@ -155,6 +155,23 @@ impl Instrument for PotionInstrument {
 
     fn all_notes_off(&mut self) {
         self.engine.all_notes_off();
+    }
+
+    fn set_controller(&mut self, index: usize, value: f32) {
+        if !value.is_finite() {
+            return;
+        }
+        let value = value.clamp(0.0, 1.0);
+        match index {
+            4 => self.params.pitch_bend = value * 4.0 - 2.0,
+            5 => self.params.aftertouch = value,
+            8 => self.params.mod_wheel = value,
+            _ => {}
+        }
+    }
+
+    fn set_slide(&mut self, pitch: f32, pan: f32, velocity: f32) {
+        self.engine.set_slide(pitch, pan, velocity);
     }
 
     fn reset(&mut self) {
@@ -210,5 +227,11 @@ mod tests {
         instrument.set_parameter(40, 1.0);
         assert_eq!(instrument.params.unison, 7);
         assert_eq!(instrument.params.warp_mode, 3);
+        instrument.set_controller(4, 1.0);
+        instrument.set_controller(5, 0.75);
+        instrument.set_controller(8, 0.25);
+        assert_eq!(instrument.params.pitch_bend, 2.0);
+        assert_eq!(instrument.params.aftertouch, 0.75);
+        assert_eq!(instrument.params.mod_wheel, 0.25);
     }
 }

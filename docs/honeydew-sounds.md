@@ -21,6 +21,8 @@ Before wiring the browser into the UI, inspect the current sample picker and pro
 - Added `src/content/sounds.rs` with provider-neutral asset metadata, the six browser categories, CC0/CC-BY licence parsing, attribution formatting, and validation of provider metadata/HTTPS URLs.
 - Exposed the model as `crate::content::sounds`.
 - Added unit tests for licence eligibility, attribution, insecure URLs, and invalid duration metadata.
+- Licence parsing now recognizes the canonical Creative Commons CC0 and CC-BY 2.0/3.0/4.0 URLs returned by providers, as well as short identifiers; NC and ND variants remain rejected.
+- Confirmed the existing `src/ui/views/sample_picker.rs` path already handles worker-thread decoding, waveform preview, and applying imported audio to pads, clips, and supported modules. Honeydew Sounds should hand downloaded files into that path rather than create another preview engine.
 - Not yet implemented: provider API client, search UI, preview transport, download/cache, and playlist import. The model is a foundation, not a usable browser yet.
 
 ## Phase 1 scope
@@ -61,7 +63,7 @@ Before wiring the browser into the UI, inspect the current sample picker and pro
 
 ## Suggested implementation sequence
 
-1. Confirm provider API/authentication and the exact licence filter; write provider metadata types and tests.
+1. Confirm provider API/authentication and the exact licence filter; write provider metadata types and tests. (The shared metadata and licence checks are in place; provider selection/authentication remains open.)
 2. Add a provider client with pagination, search, category mapping, cancellation, and bounded responses.
 3. Add a user-owned cache with metadata persistence, atomic downloads, and offline listing.
 4. Build the browser using Honeydew's existing side-panel/search/preview conventions.

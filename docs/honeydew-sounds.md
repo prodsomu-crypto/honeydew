@@ -20,13 +20,13 @@ Before wiring the browser into the UI, inspect the current sample picker and pro
 
 - Added `src/content/sounds.rs` with provider-neutral asset metadata, the six browser categories, CC0/CC-BY/CC-BY-NC licence parsing, attribution formatting, and validation of provider metadata/HTTPS URLs.
 - Added `src/content/freesound.rs` with Freesound search-response DTOs, a bounded/encoded search URL builder, preview selection, tag-based category hints, and conversion into validated provider-neutral assets.
-- Added asynchronous search transport using `ehttp` (native and wasm-compatible), with the API key sent in an Authorization header, a 20-second timeout, a 2 MiB response-body guard, and user-safe error messages. The caller supplies the key; this layer does not persist or log it.
+- Added transport-independent credential validation and Authorization-header construction. Credentials are not put in URLs or persisted by this module. A live HTTP client is deferred until the lockfile can be regenerated and all supported targets can be built.
 - Exposed both modules as `crate::content::sounds` and `crate::content::freesound`.
 - Added adapter tests for URL encoding/pagination bounds, CC-BY metadata conversion, attribution retention, and rejection of ND or preview-less results.
 - Added unit tests for licence eligibility, attribution, insecure URLs, and invalid duration metadata.
 - Licence parsing recognizes canonical Creative Commons CC0, CC-BY 2.0/3.0/4.0, and CC-BY-NC 2.0/3.0/4.0 URLs as well as short identifiers. NC assets are allowed for this personal-use project but always require attribution; ND variants remain excluded.
 - Confirmed the existing `src/ui/views/sample_picker.rs` path already handles worker-thread decoding, waveform preview, and applying imported audio to pads, clips, and supported modules. Honeydew Sounds should hand downloaded files into that path rather than create another preview engine.
-- Not yet implemented: local credential storage/settings UI, search UI, preview transport, download/cache, and playlist import. The asynchronous transport exists but has not been wired into the UI or verified with a build; this is still not a usable browser.
+- Not yet implemented: HTTP transport, local credential storage/settings UI, search UI, preview transport, download/cache, and playlist import. This is still a provider adapter foundation, not a usable browser.
 
 ## Phase 1 scope
 
@@ -67,7 +67,7 @@ Before wiring the browser into the UI, inspect the current sample picker and pro
 ## Suggested implementation sequence
 
 1. Confirm provider API/authentication and the exact licence filter; write provider metadata types and tests. (Done as transport-free adapter groundwork; live search still requires a local API credential.)
-2. Add private local credential handling and wire the async transport into a cancellable search UI. The API key is supplied at call time and is never put in the URL or persisted by this module.
+2. Add a cross-platform HTTP dependency and regenerate Cargo.lock, then implement cancellable search transport with private local credential handling. The API key must be sent in an Authorization header and never put in the URL.
 3. Add a user-owned cache with metadata persistence, atomic downloads, and offline listing.
 4. Build the browser using Honeydew's existing side-panel/search/preview conventions.
 5. Connect Import to the existing audio-file import flow.

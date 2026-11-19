@@ -23,15 +23,15 @@ use crate::project_files::BUILT_IN;
 use crate::ui::main_menu::{SongEntry, SongLibrary};
 
 pub mod bundle;
-pub mod freesound;
 mod chord_sets;
 mod demo;
+pub mod freesound;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod install;
 pub mod kits;
-pub mod sounds;
 mod presets;
 mod samples;
+pub mod sounds;
 mod templates;
 pub mod web;
 

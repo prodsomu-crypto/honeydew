@@ -97,7 +97,10 @@ impl State {
 
     fn poll_local(&mut self, app: &mut AppCtx) {
         // Existing local sample picks use the same worker decode and waveform preview as Honeydew's other pickers.
-        let local_result = self.local_loading.as_ref().map(|(_, receiver)| receiver.try_recv());
+        let local_result = self
+            .local_loading
+            .as_ref()
+            .map(|(_, receiver)| receiver.try_recv());
         if let Some(result) = local_result {
             match result {
                 Ok(decoded) => {
@@ -288,7 +291,6 @@ impl State {
                 }
             }
         }
-
     }
 }
 

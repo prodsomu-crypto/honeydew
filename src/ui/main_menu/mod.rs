@@ -197,7 +197,9 @@ pub const HELP_LINKS: [(&str, &str); 2] = [
 
 /// The Help menu at `at`: What's new (0), Honeydew Sounds (1), then [`HELP_LINKS`].
 fn help_menu(ctx: &eframe::egui::Context, cx: &UiCtx, id: Id, at: Pos2) -> PopupResult<usize> {
-    let labels = ["What's new", "Honeydew Sounds"].into_iter().chain(HELP_LINKS.iter().map(|l| l.0));
+    let labels = ["What's new", "Honeydew Sounds"]
+        .into_iter()
+        .chain(HELP_LINKS.iter().map(|l| l.0));
     let items: Vec<PopupItem<usize>> = (labels.enumerate())
         .map(|(row, label)| PopupItem::new(row, 0, row, label))
         .collect();

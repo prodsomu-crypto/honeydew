@@ -147,14 +147,17 @@ pub fn load_sounds_api_key() -> Option<String> {
     let key = key.trim().to_owned();
     (!key.is_empty()
         && key.len() <= 512
-        && !key.bytes().any(|b| b.is_ascii_control() || b.is_ascii_whitespace()))
+        && !key
+            .bytes()
+            .any(|b| b.is_ascii_control() || b.is_ascii_whitespace()))
     .then_some(key)
 }
 
 /// Saves the Freesound API key in a private per-device file. An empty value removes it.
 pub fn save_sounds_api_key(key: &str) -> std::io::Result<()> {
-    let path = sounds_api_key_path()
-        .ok_or_else(|| std::io::Error::other("Private API-key storage is unavailable on this platform"))?;
+    let path = sounds_api_key_path().ok_or_else(|| {
+        std::io::Error::other("Private API-key storage is unavailable on this platform")
+    })?;
     let key = key.trim();
     if key.is_empty() {
         return match std::fs::remove_file(path) {
@@ -163,13 +166,19 @@ pub fn save_sounds_api_key(key: &str) -> std::io::Result<()> {
             Err(err) => Err(err),
         };
     }
-    if key.len() > 512 || key.bytes().any(|b| b.is_ascii_control() || b.is_ascii_whitespace()) {
+    if key.len() > 512
+        || key
+            .bytes()
+            .any(|b| b.is_ascii_control() || b.is_ascii_whitespace())
+    {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
             "The API key contains invalid characters.",
         ));
     }
-    let parent = path.parent().ok_or_else(|| std::io::Error::other("No configuration folder"))?;
+    let parent = path
+        .parent()
+        .ok_or_else(|| std::io::Error::other("No configuration folder"))?;
     std::fs::create_dir_all(parent)?;
     let temporary = path.with_extension("tmp");
     std::fs::write(&temporary, key.as_bytes())?;

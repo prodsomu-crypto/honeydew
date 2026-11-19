@@ -145,10 +145,16 @@ impl ProjectFiles {
     ) -> io::Result<PathBuf> {
         let extension = extension.to_ascii_lowercase();
         if !matches!(extension.as_str(), "ogg" | "mp3" | "wav" | "flac") {
-            return Err(io::Error::new(io::ErrorKind::InvalidInput, "Unsupported sample format"));
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "Unsupported sample format",
+            ));
         }
         if bytes.is_empty() || bytes.len() > 32 * 1024 * 1024 {
-            return Err(io::Error::new(io::ErrorKind::InvalidData, "Sample size is outside the allowed limit"));
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Sample size is outside the allowed limit",
+            ));
         }
 
         let mut stem = String::new();
@@ -156,14 +162,20 @@ impl ProjectFiles {
             if stem.chars().count() >= 64 {
                 break;
             }
-            stem.push(if ch.is_alphanumeric() || matches!(ch, ' ' | '-' | '_' | '.') {
-                ch
-            } else {
-                '_'
-            });
+            stem.push(
+                if ch.is_alphanumeric() || matches!(ch, ' ' | '-' | '_' | '.') {
+                    ch
+                } else {
+                    '_'
+                },
+            );
         }
         let stem = stem.trim().trim_matches('.');
-        let stem = if stem.is_empty() { "Freesound sample" } else { stem };
+        let stem = if stem.is_empty() {
+            "Freesound sample"
+        } else {
+            stem
+        };
         let dir = self
             .user_dir()
             .ok_or_else(|| io::Error::other("The user sample folder is unavailable"))?
@@ -173,7 +185,10 @@ impl ProjectFiles {
         let source = target.with_extension("txt");
 
         if attribution.trim().is_empty() {
-            return Err(io::Error::new(io::ErrorKind::InvalidInput, "Source and licence details are required"));
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "Source and licence details are required",
+            ));
         }
         self.write_user_file(&source, attribution.as_bytes().to_vec())?;
         if let Err(err) = self.write_user_file(&target, bytes) {

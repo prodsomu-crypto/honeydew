@@ -96,9 +96,9 @@ impl SoundResult {
             title: self.name,
             creator: self.username,
             category: category_from_tags(&self.tags),
-            duration_seconds: self.duration.and_then(|n| {
-                (n.is_finite() && n >= 0.0 && n <= 86_400.0).then_some(n as f32)
-            }),
+            duration_seconds: self
+                .duration
+                .and_then(|n| (n.is_finite() && n >= 0.0 && n <= 86_400.0).then_some(n as f32)),
             sample_rate: self.samplerate,
             page_url: format!("https://freesound.org/s/{}/", self.id),
             download_url: preview,
@@ -132,7 +132,10 @@ fn is_freesound_preview_url(url: &str) -> bool {
 }
 
 fn category_from_tags(tags: &[String]) -> Category {
-    let has = |words: &[&str]| tags.iter().any(|tag| words.iter().any(|word| tag.eq_ignore_ascii_case(word)));
+    let has = |words: &[&str]| {
+        tags.iter()
+            .any(|tag| words.iter().any(|word| tag.eq_ignore_ascii_case(word)))
+    };
     if has(&["drum", "kick", "snare", "hat", "cymbal", "percussion"]) {
         Category::Drums
     } else if has(&["loop", "looped", "beat", "rhythm"]) {
@@ -181,27 +184,50 @@ mod tests {
     #[test]
     fn filters_unknown_licences_and_missing_previews() {
         let base = r#"{"id":1,"name":"x","username":"y","license":"CC-BY-ND","previews":{"preview-hq-ogg":"https://cdn.freesound.org/x.ogg"}}"#;
-        assert!(serde_json::from_str::<SoundResult>(base).unwrap().into_asset().is_none());
+        assert!(
+            serde_json::from_str::<SoundResult>(base)
+                .unwrap()
+                .into_asset()
+                .is_none()
+        );
         let no_preview = r#"{"id":1,"name":"x","username":"y","license":"CC0","previews":{}}"#;
-        assert!(serde_json::from_str::<SoundResult>(no_preview).unwrap().into_asset().is_none());
+        assert!(
+            serde_json::from_str::<SoundResult>(no_preview)
+                .unwrap()
+                .into_asset()
+                .is_none()
+        );
         let external_preview = r#"{"id":1,"name":"x","username":"y","license":"CC0","previews":{"preview-hq-ogg":"https://example.org/x.ogg"}}"#;
-        assert!(serde_json::from_str::<SoundResult>(external_preview).unwrap().into_asset().is_none());
+        assert!(
+            serde_json::from_str::<SoundResult>(external_preview)
+                .unwrap()
+                .into_asset()
+                .is_none()
+        );
     }
 
     #[test]
     fn preview_hosts_must_be_secure_freesound_hosts() {
-        assert!(is_freesound_preview_url("https://cdn.freesound.org/previews/1.ogg"));
-        assert!(is_freesound_preview_url("https://freesound.org/data/previews/1.ogg"));
+        assert!(is_freesound_preview_url(
+            "https://cdn.freesound.org/previews/1.ogg"
+        ));
+        assert!(is_freesound_preview_url(
+            "https://freesound.org/data/previews/1.ogg"
+        ));
         assert!(!is_freesound_preview_url("http://cdn.freesound.org/1.ogg"));
-        assert!(!is_freesound_preview_url("https://freesound.org.example.com/1.ogg"));
+        assert!(!is_freesound_preview_url(
+            "https://freesound.org.example.com/1.ogg"
+        ));
         assert!(!is_freesound_preview_url("https://example.org/1.ogg"));
-        assert!(!is_freesound_preview_url("https://user@freesound.org/1.ogg"));
+        assert!(!is_freesound_preview_url(
+            "https://user@freesound.org/1.ogg"
+        ));
         assert!(!is_freesound_preview_url("https://freesound.org:443/1.ogg"));
-        assert!(!is_freesound_preview_url("https://freesound.org\\\\@example.org/1.ogg"));
+        assert!(!is_freesound_preview_url(
+            "https://freesound.org\\\\@example.org/1.ogg"
+        ));
     }
 }
-
-
 
 /// Errors validating the local Freesound search configuration.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -215,7 +241,9 @@ impl std::fmt::Display for SearchConfigError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::MissingCredential => f.write_str("Freesound API credential is not configured."),
-            Self::InvalidCredential => f.write_str("Freesound API credential contains invalid characters."),
+            Self::InvalidCredential => {
+                f.write_str("Freesound API credential contains invalid characters.")
+            }
             Self::InvalidQuery => f.write_str("Search text is too long."),
         }
     }
@@ -228,7 +256,11 @@ pub fn authorization_value(api_key: &str) -> Result<String, SearchConfigError> {
     if key.is_empty() {
         return Err(SearchConfigError::MissingCredential);
     }
-    if key.len() > 512 || key.bytes().any(|b| b.is_ascii_control() || b.is_ascii_whitespace()) {
+    if key.len() > 512
+        || key
+            .bytes()
+            .any(|b| b.is_ascii_control() || b.is_ascii_whitespace())
+    {
         return Err(SearchConfigError::InvalidCredential);
     }
     Ok(format!("Token {key}"))
@@ -236,7 +268,9 @@ pub fn authorization_value(api_key: &str) -> Result<String, SearchConfigError> {
 
 /// Validate a query before handing it to a provider transport.
 pub fn validate_query(query: &str) -> Result<(), SearchConfigError> {
-    if query.len() > 256 { return Err(SearchConfigError::InvalidQuery); }
+    if query.len() > 256 {
+        return Err(SearchConfigError::InvalidQuery);
+    }
     Ok(())
 }
 
@@ -247,13 +281,22 @@ mod config_tests {
     #[test]
     fn credentials_are_header_only_and_reject_control_characters() {
         assert_eq!(authorization_value("  abc123  ").unwrap(), "Token abc123");
-        assert_eq!(authorization_value(""), Err(SearchConfigError::MissingCredential));
-        assert_eq!(authorization_value("bad\nkey"), Err(SearchConfigError::InvalidCredential));
+        assert_eq!(
+            authorization_value(""),
+            Err(SearchConfigError::MissingCredential)
+        );
+        assert_eq!(
+            authorization_value("bad\nkey"),
+            Err(SearchConfigError::InvalidCredential)
+        );
     }
 
     #[test]
     fn search_query_has_a_bounded_length() {
         assert_eq!(validate_query("ambient pad"), Ok(()));
-        assert_eq!(validate_query(&"x".repeat(257)), Err(SearchConfigError::InvalidQuery));
+        assert_eq!(
+            validate_query(&"x".repeat(257)),
+            Err(SearchConfigError::InvalidQuery)
+        );
     }
 }

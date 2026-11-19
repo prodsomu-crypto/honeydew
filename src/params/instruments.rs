@@ -1085,6 +1085,8 @@ const POTION: &[P] = &[
     P::plain("Attack", 0.2562), // 16
     P::plain("Release", 0.5531), // 17
     P::plain("Master", 0.7), // 18
+    P::plain("Filter Cutoff", 1.0), // 19
+    P::plain("Sustain", 0.8), // 20
 ];
 
 pub static MODULES: &[ModuleSpec] = &[
@@ -1143,6 +1145,6 @@ pub static MODULES: &[ModuleSpec] = &[
         "Potion",
         "Potion",
         POTION,
-        &["OSC 1", "OSC 2", "OSC 3", "ENVELOPE", "MASTER"],
+        &["OSC 1", "OSC 2", "OSC 3", "FILTER", "ENVELOPE", "MASTER"],
     ),
 ];

@@ -49,7 +49,7 @@ use crate::icons::{IconId, draw_icon};
 use crate::metrics::{FontSize, Metrics};
 use crate::midi::links;
 use crate::panels::inst::soundfont_player::{self, Press, SoundFonts};
-use crate::panels::inst::{slicer, three_osc};
+use crate::panels::inst::{potion, slicer, three_osc};
 use crate::panels::{self, PanelState, cstm};
 use crate::params::{COMMON_PARAMS, ParamSpec, Role, module_spec};
 use crate::project_files::PresetSource;
@@ -153,7 +153,7 @@ pub fn ui_height(type_id: u16) -> Option<f32> {
         33 => 8.5,
         39 => 10.0,
         52 => 8.5,
-        53 => 10.0,
+        53 => 13.0,
         // Effects and note effects.
         3 | 7 | 26 | 30 | 51 => 10.0,
         4 | 35 | 36 | 43 | 46 => 9.0,
@@ -2220,7 +2220,10 @@ impl RackPanel {
             Some(Press::Stepped) => actions.replace_song = true,
             None => {}
         }
-        if edits.sample || three_osc::custom_picked(module, &edits.changed) {
+        if edits.sample
+            || three_osc::custom_picked(module, &edits.changed)
+            || potion::custom_picked(module, &edits.changed)
+        {
             actions.module_sample = Some(id);
         }
         self.report(actions, index, module, edits.changed);

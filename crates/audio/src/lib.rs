@@ -34,6 +34,7 @@ pub mod pitcher;
 pub mod pitcher2;
 pub mod playback;
 pub mod potion;
+pub mod potion_instrument;
 mod reverbs;
 pub mod sample;
 pub mod sample_edit;

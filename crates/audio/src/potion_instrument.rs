@@ -72,9 +72,8 @@ impl PotionInstrument {
                 }
             }
         }
-        let table = Arc::new(
-            Wavetable::new(frames).expect("built-in Potion factory tables are valid"),
-        );
+        let table =
+            Arc::new(Wavetable::new(frames).expect("built-in Potion factory tables are valid"));
         Self {
             engine: PotionEngine::new(sample_rate, std::array::from_fn(|_| table.clone())),
             params: PotionParams::default(),

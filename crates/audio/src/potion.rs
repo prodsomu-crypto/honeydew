@@ -46,12 +46,16 @@ pub struct PotionParams {
     pub noise_level: f32,
     pub velocity_sensitivity: f32,
     pub filter_env_amount: f32,
+    pub filter_attack_seconds: f32,
+    pub filter_decay_seconds: f32,
+    pub filter_sustain: f32,
+    pub filter_release_seconds: f32,
     pub polyphony: usize,
     pub pitch_bend: f32,
     pub mod_wheel: f32,
     pub aftertouch: f32,
     /// Four simple modulation routes: source, destination and signed depth.
-    /// Sources: LFO 1, LFO 2, amp envelope, velocity. Destinations: pitch, filter, pan, osc 1/2/3 level.
+    /// Sources: LFO 1, LFO 2, amp envelope, velocity, mod wheel, aftertouch. Destinations: pitch, filter, pan, osc 1/2/3 level.
     pub mod_source: [u8; 4],
     pub mod_destination: [u8; 4],
     pub mod_amount: [f32; 4],
@@ -90,6 +94,10 @@ impl Default for PotionParams {
             noise_level: 0.0,
             velocity_sensitivity: 0.7,
             filter_env_amount: 0.0,
+            filter_attack_seconds: 0.01,
+            filter_decay_seconds: 0.25,
+            filter_sustain: 0.7,
+            filter_release_seconds: 0.18,
             polyphony: MAX_VOICES,
             pitch_bend: 0.0,
             mod_wheel: 0.0,
@@ -115,6 +123,9 @@ struct Voice {
     envelope: f32,
     /// 0 attack, 1 decay, 2 sustain, 3 release.
     amp_stage: u8,
+    filter_envelope: f32,
+    /// Independent filter ADSR stage: 0 attack, 1 decay, 2 sustain, 3 release.
+    filter_stage: u8,
     filter_ic1_left: f32,
     filter_ic2_left: f32,
     filter_ic1_right: f32,
@@ -226,12 +237,14 @@ impl PotionEngine {
             .filter(|voice| voice.active && voice.note == note)
         {
             voice.amp_stage = 3;
+            voice.filter_stage = 3;
         }
     }
 
     pub fn all_notes_off(&mut self) {
         for voice in self.voices.iter_mut().filter(|voice| voice.active) {
             voice.amp_stage = 3;
+            voice.filter_stage = 3;
         }
     }
 
@@ -252,6 +265,10 @@ impl PotionEngine {
         let decay_step = (params.decay_seconds.max(0.001) * sr).recip();
         let release_step = (params.release_seconds.max(0.001) * sr).recip();
         let sustain = params.sustain.clamp(0.0, 1.0);
+        let filter_attack_step = (params.filter_attack_seconds.max(0.001) * sr).recip();
+        let filter_decay_step = (params.filter_decay_seconds.max(0.001) * sr).recip();
+        let filter_release_step = (params.filter_release_seconds.max(0.001) * sr).recip();
+        let filter_sustain = params.filter_sustain.clamp(0.0, 1.0);
         let master = params.master.clamp(0.0, 1.0) * 0.18;
         let unison = params.unison.clamp(1, MAX_UNISON);
         let detune = params.detune_cents.clamp(0.0, 50.0);
@@ -300,6 +317,29 @@ impl PotionEngine {
                         }
                     }
                     _ => voice.amp_stage = 3,
+                }
+                match voice.filter_stage {
+                    0 => {
+                        voice.filter_envelope = (voice.filter_envelope + filter_attack_step).min(1.0);
+                        if voice.filter_envelope >= 1.0 {
+                            voice.filter_stage = 1;
+                        }
+                    }
+                    1 => {
+                        voice.filter_envelope = (voice.filter_envelope
+                            - filter_decay_step * (1.0 - filter_sustain))
+                            .max(filter_sustain);
+                        if voice.filter_envelope <= filter_sustain + 1.0e-6 {
+                            voice.filter_envelope = filter_sustain;
+                            voice.filter_stage = 2;
+                        }
+                    }
+                    2 => voice.filter_envelope = filter_sustain,
+                    3 => {
+                        voice.filter_envelope =
+                            (voice.filter_envelope - filter_release_step).max(0.0);
+                    }
+                    _ => voice.filter_stage = 3,
                 }
 
                 voice.pitch += (voice.target_pitch - voice.pitch) * glide_step;
@@ -430,7 +470,7 @@ impl PotionEngine {
 
                 let key_track = ((voice.pitch - 60.0) / 60.0).clamp(-1.0, 1.0) * 0.12;
                 let cutoff_norm = (params.filter_cutoff
-                    + voice.envelope * params.filter_env_amount.clamp(0.0, 1.0)
+                    + voice.filter_envelope * params.filter_env_amount.clamp(0.0, 1.0)
                     + filter_mod
                     + key_track)
                     .clamp(0.0, 1.0);
@@ -567,6 +607,23 @@ mod tests {
         assert_eq!(engine.active_voices(), 1);
         engine.render(&mut left, &mut right, &params);
         assert!(engine.voices[0].target_pitch > engine.voices[0].pitch);
+    }
+
+    #[test]
+    fn filter_envelope_has_its_own_attack_time() {
+        let t = table();
+        let mut engine = PotionEngine::new(48_000.0, [t.clone(), t.clone(), t]);
+        let mut params = PotionParams::default();
+        params.attack_seconds = 0.001;
+        params.sustain = 1.0;
+        params.filter_attack_seconds = 0.1;
+        params.filter_sustain = 0.0;
+        engine.note_on_with_params(69, 1.0, 0.5, &params);
+        let mut left = vec![0.0; 48];
+        let mut right = left.clone();
+        engine.render(&mut left, &mut right, &params);
+        assert!(engine.voices[0].envelope > engine.voices[0].filter_envelope);
+        assert!(engine.voices[0].filter_envelope > 0.0);
     }
 
     #[test]

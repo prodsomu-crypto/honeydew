@@ -121,7 +121,7 @@ impl Instrument for PotionInstrument {
             20 => self.params.sustain = value,
             21 => self.params.decay_seconds = Self::seconds(value, 8.0),
             22 => self.params.filter_resonance = value,
-            23 => self.params.filter_mode = (value * 3.0).round() as u8,
+            23 => self.params.filter_mode = (value * 2.0).round() as u8,
             24 => self.params.unison = 1 + (value * 6.0).round() as usize,
             25 => self.params.detune_cents = value * 50.0,
             26 => self.params.stereo_spread = value,
@@ -129,11 +129,11 @@ impl Instrument for PotionInstrument {
             28 => self.params.voice_mode = (value * 2.0).round() as u8,
             29 => self.params.lfo_rate[0] = Self::rate(value),
             30 => self.params.lfo_amount[0] = value,
-            31 => self.params.lfo_destination[0] = (value * 5.0).round() as u8,
+            31 => self.params.lfo_destination[0] = (value * 2.0).round() as u8,
             32 => self.params.lfo_wave[0] = (value * 2.0).round() as u8,
             33 => self.params.lfo_rate[1] = Self::rate(value),
             34 => self.params.lfo_amount[1] = value,
-            35 => self.params.lfo_destination[1] = (value * 5.0).round() as u8,
+            35 => self.params.lfo_destination[1] = (value * 2.0).round() as u8,
             36 => self.params.lfo_wave[1] = (value * 2.0).round() as u8,
             37 => self.params.fm_amount = value,
             38 => self.params.ring_amount = value,
@@ -148,7 +148,7 @@ impl Instrument for PotionInstrument {
                 let route = (index - 47) / 3;
                 match (index - 47) % 3 {
                     0 => self.params.mod_source[route] = (value * 5.0).round() as u8,
-                    1 => self.params.mod_destination[route] = (value * 8.0).round() as u8,
+                    1 => self.params.mod_destination[route] = (value * 5.0).round() as u8,
                     _ => self.params.mod_amount[route] = value * 2.0 - 1.0,
                 }
             }
@@ -163,6 +163,7 @@ impl Instrument for PotionInstrument {
             67 => self.params.pitch_bend_range = 1.0 + value * 23.0,
             68 => self.params.filter_key_track = value * 2.0 - 1.0,
             69 => self.params.filter_velocity = value,
+            70 => self.params.filter_notch = value >= 0.5,
             _ => {}
         }
     }

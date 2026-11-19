@@ -525,7 +525,7 @@ fn filter_page(
     graph_grid(ui, plot);
     let cutoff = value(module, 19);
     let resonance = value(module, 22);
-    let filter_mode = (value(module, 23) * 3.0).round() as usize;
+    let filter_mode = (value(module, 23) * 2.0).round() as usize;
     let points = (0..=120)
         .map(|i| {
             let x = i as f32 / 120.0;
@@ -533,11 +533,15 @@ fn filter_page(
             let low = 1.0 / (1.0 + ratio.powf(3.7)).sqrt();
             let high = 1.0 - low;
             let band = (2.0 * ratio / (1.0 + ratio * ratio)).clamp(0.0, 1.0);
-            let base = match filter_mode {
-                1 => band,
-                2 => high,
-                3 => 1.0 - band,
-                _ => low,
+            let notch = value(module, 70) >= 0.5;
+            let base = if notch {
+                1.0 - band
+            } else {
+                match filter_mode {
+                    1 => band,
+                    2 => high,
+                    _ => low,
+                }
             };
             let peak = (-((x - cutoff).powi(2)) / 0.0035).exp() * resonance * 0.32;
             let y = (base + peak).clamp(0.0, 1.0);
@@ -600,12 +604,25 @@ fn filter_page(
         ui,
         id,
         Rect::from_min_size(
+            pos2(side.left() + 8.0, side.bottom() - 78.0),
+            vec2(side.width() - 16.0, 30.0),
+        ),
+        module,
+        70,
+        &["SVF FILTER", "NOTCH FILTER"],
+        ink,
+        changed,
+    );
+    choice(
+        ui,
+        id,
+        Rect::from_min_size(
             pos2(side.left() + 8.0, side.bottom() - 42.0),
             vec2(side.width() - 16.0, 32.0),
         ),
         module,
         23,
-        &["LOW PASS", "BAND PASS", "HIGH PASS", "NOTCH"],
+        &["LOW PASS", "BAND PASS", "HIGH PASS"],
         ink,
         changed,
     );
@@ -828,7 +845,7 @@ fn modulation_page(
             ),
             module,
             31 + lfo * 4,
-            &["PITCH", "FILTER", "PAN", "OSC 1 PITCH", "OSC 2 PITCH", "OSC 3 PITCH"],
+            &["PITCH", "FILTER", "PAN"],
             ink,
             changed,
         );
@@ -1098,17 +1115,7 @@ fn matrix_page(
             ),
             module,
             base + 1,
-            &[
-                "PITCH",
-                "FILTER",
-                "PAN",
-                "OSC 1 LEVEL",
-                "OSC 2 LEVEL",
-                "OSC 3 LEVEL",
-                "OSC 1 PITCH",
-                "OSC 2 PITCH",
-                "OSC 3 PITCH",
-            ],
+            &["PITCH", "FILTER", "PAN", "OSC 1", "OSC 2", "OSC 3"],
             ink,
             changed,
         );

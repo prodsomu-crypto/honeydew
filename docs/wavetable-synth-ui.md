@@ -8,9 +8,9 @@ The editor is arranged as eight full-width pages rather than exposing the instru
 
 - **OSC:** three oscillator cards with waveform previews, enable/bypass, level, pan, pitch and table-position controls.
 - **TABLE:** oscillator selection, morph control, factory wave regions and a table import button. Imported single-cycle files are expanded into a 16-frame harmonic-scan bank, from a fundamental-only frame to the full source spectrum.
-- **FILTER:** visual response curve, cutoff, resonance, envelope amount, signed keyboard tracking, velocity tracking and low-pass / band-pass / high-pass / notch modes.
+- **FILTER:** visual response curve, cutoff, resonance, envelope amount, signed keyboard tracking, velocity tracking, low-pass / band-pass / high-pass modes and a separate notch switch.
 - **ENV:** plotted amplitude ADSR and independent filter-envelope controls.
-- **MOD:** two free-running or host-tempo-synced LFOs with seven beat divisions, shape, rate, depth and destinations including per-oscillator pitch; FM, ring modulation and warp controls.
+- **MOD:** two free-running or host-tempo-synced LFOs with seven beat divisions, shape, rate, depth and pitch/filter/pan destinations; FM, ring modulation and warp controls.
 - **VOICE:** visual unison spread, detune, stereo width, glide, adjustable 1–24 semitone pitch-bend range, poly/mono/legato and polyphony.
 - **MIX:** oscillator level bars, sub, noise, velocity response and master.
 - **MATRIX:** four source/destination/depth modulation routes.
@@ -25,7 +25,7 @@ This is not yet a full multi-frame wavetable authoring suite: freehand frame dra
 
 ## Audio and modulation
 
-The native DSP currently provides three wavetable oscillators, mipmapped wavetable sampling, oscillator level/pan/pitch/morph, unison/detune/spread, FM, ring modulation, warp modes, sub/noise, a state-variable low/band/high-pass/notch filter, amplitude and filter ADSRs, two free-running or tempo-synced LFOs, four modulation routes (including per-oscillator pitch), filter key/velocity tracking, adjustable pitch-bend range, poly/mono/legato behavior, glide, aftertouch, mod wheel and slide response.
+The native DSP currently provides three wavetable oscillators, mipmapped wavetable sampling, oscillator level/pan/pitch/morph, unison/detune/spread, FM, ring modulation, warp modes, sub/noise, a state-variable low/band/high-pass/notch filter, amplitude and filter ADSRs, two free-running or tempo-synced LFOs, four modulation routes, filter key/velocity tracking, adjustable pitch-bend range, poly/mono/legato behavior, glide, aftertouch, mod wheel and slide response.
 
 The processing path uses bounded voice/oscillator arrays and avoids file I/O and allocation on the audio callback. Physical-device CPU and audio-glitch behavior still requires verification on actual Android hardware.
 

@@ -25,6 +25,7 @@ pub struct PotionParams {
     pub filter_resonance: f32,
     /// 0 = low-pass, 1 = band-pass, 2 = high-pass.
     pub filter_mode: u8,
+    pub filter_notch: bool,
     pub unison: usize,
     pub detune_cents: f32,
     pub stereo_spread: f32,
@@ -33,7 +34,7 @@ pub struct PotionParams {
     pub voice_mode: u8,
     pub lfo_rate: [f32; 2],
     pub lfo_amount: [f32; 2],
-    /// 0 = pitch, 1 = filter, 2 = pan, 3..5 = oscillator 1..3 pitch.
+    /// 0 = pitch, 1 = filter, 2 = pan.
     pub lfo_destination: [u8; 2],
     /// 0 = sine, 1 = triangle, 2 = square.
     pub lfo_wave: [u8; 2],
@@ -63,7 +64,7 @@ pub struct PotionParams {
     pub mod_wheel: f32,
     pub aftertouch: f32,
     /// Four simple modulation routes: source, destination and signed depth.
-    /// Sources: LFO 1, LFO 2, amp envelope, velocity, mod wheel, aftertouch. Destinations: pitch, filter, pan, osc 1/2/3 level and osc 1/2/3 pitch.
+    /// Sources: LFO 1, LFO 2, amp envelope, velocity, mod wheel, aftertouch. Destinations: pitch, filter, pan, osc 1/2/3 level.
     pub mod_source: [u8; 4],
     pub mod_destination: [u8; 4],
     pub mod_amount: [f32; 4],
@@ -85,6 +86,7 @@ impl Default for PotionParams {
             filter_cutoff: 1.0,
             filter_resonance: 0.1,
             filter_mode: 0,
+            filter_notch: false,
             unison: 1,
             detune_cents: 8.0,
             stereo_spread: 0.7,
@@ -104,7 +106,7 @@ impl Default for PotionParams {
             noise_level: 0.0,
             velocity_sensitivity: 0.7,
             filter_env_amount: 0.0,
-            filter_key_track: 0.0,
+            filter_key_track: 0.12,
             filter_velocity: 0.0,
             filter_attack_seconds: 0.01,
             filter_decay_seconds: 0.25,
@@ -402,20 +404,15 @@ impl PotionEngine {
                 let mut filter_mod = 0.0;
                 let mut pan_mod = 0.0;
                 let mut oscillator_mod = [0.0f32; OSCILLATORS];
-                let mut oscillator_pitch_mod = [0.0f32; OSCILLATORS];
                 for (value, amount, destination) in [
                     (lfo_a, params.lfo_amount[0], params.lfo_destination[0]),
                     (lfo_b, params.lfo_amount[1], params.lfo_destination[1]),
                 ] {
                     let depth = amount.clamp(0.0, 1.0);
-                    match destination.min(5) {
+                    match destination.min(2) {
                         0 => pitch_mod += value * depth * 12.0,
                         1 => filter_mod += value * depth * 0.45,
-                        2 => pan_mod += value * depth * 0.6,
-                        3..=5 => {
-                            oscillator_pitch_mod[usize::from(destination - 3)] += value * depth * 12.0;
-                        }
-                        _ => {}
+                        _ => pan_mod += value * depth * 0.6,
                     }
                 }
                 for route in 0..4 {
@@ -428,15 +425,12 @@ impl PotionEngine {
                         _ => params.aftertouch * 2.0 - 1.0,
                     };
                     let depth = source * params.mod_amount[route].clamp(-1.0, 1.0);
-                    match params.mod_destination[route].min(8) {
+                    match params.mod_destination[route].min(5) {
                         0 => pitch_mod += depth * 12.0,
                         1 => filter_mod += depth * 0.45,
                         2 => pan_mod += depth * 0.6,
                         3..=5 => {
                             oscillator_mod[usize::from(params.mod_destination[route] - 3)] += depth
-                        }
-                        6..=8 => {
-                            oscillator_pitch_mod[usize::from(params.mod_destination[route] - 6)] += depth * 12.0;
                         }
                         _ => {}
                     }
@@ -462,7 +456,6 @@ impl PotionEngine {
                             * 2.0f32.powf(
                                 (params.semitones[osc].clamp(-48.0, 48.0)
                                     + pitch_mod
-                                    + oscillator_pitch_mod[osc]
                                     + cents / 100.0)
                                     / 12.0,
                             );
@@ -548,6 +541,7 @@ impl PotionEngine {
                 let a1 = (1.0 + g * (g + k)).recip();
                 let a2 = g * a1;
                 let a3 = g * a2;
+                let filter_mode = if params.filter_notch { 3 } else { params.filter_mode };
                 let (filtered_l, filtered_r) = (
                     svf(
                         dry_l,
@@ -557,7 +551,7 @@ impl PotionEngine {
                         a2,
                         a3,
                         k,
-                        params.filter_mode,
+                        filter_mode,
                     ),
                     svf(
                         dry_r,
@@ -567,7 +561,7 @@ impl PotionEngine {
                         a2,
                         a3,
                         k,
-                        params.filter_mode,
+                        filter_mode,
                     ),
                 );
                 let velocity = (voice.velocity + voice.slide_velocity).clamp(0.0, 1.0);

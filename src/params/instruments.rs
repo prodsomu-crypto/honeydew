@@ -1142,8 +1142,9 @@ const POTION: &[P] = &[
         &["1/8", "1/4", "1/2", "1/1", "2/1", "4/1", "8/1"],
     ), // 66
     P::plain("Pitch Bend Range", 1.0 / 23.0), // 67: 2 semitones
-    P::cont("Filter Key Track", 0.5, AMOUNT_1), // 68
+    P::cont("Filter Key Track", 0.56, AMOUNT_1), // 68: 0.12 default depth
     P::plain("Filter Velocity", 0.0), // 69
+    P::toggle("Filter Notch", 0.0), // 70
 ];
 
 pub static MODULES: &[ModuleSpec] = &[

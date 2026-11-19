@@ -179,17 +179,16 @@ fn slicer_loops(channel: &Channel, refs: &mut Refs) {
         .for_each(|path| refs.add(SampleKey::of_path(&path)));
 }
 
-/// Each 3x Osc's custom waveform: its `CSTM` `PATH`, kept as its built table.
+/// Each 3x Osc or Potion custom waveform: its `CSTM` `PATH`, kept as its built table.
 fn custom_shapes(channel: &Channel, refs: &mut Refs) {
     (channel.rack.modules.iter())
         .filter_map(shape_key)
         .for_each(|key| refs.add_shape(key));
 }
 
-/// A 3x Osc's custom waveform: the path its `CSTM` `PATH` chunk holds. `None` for another module,
-/// or a 3x Osc without one.
+/// A custom wavetable source for 3x Osc or Potion: the path its `CSTM` `PATH` chunk holds.
 pub(crate) fn shape_path(module: &ModuleInstance) -> Option<ContentPath> {
-    if module.type_id != three_osc::TYPE_ID {
+    if module.type_id != three_osc::TYPE_ID && module.type_id != 53 {
         return None;
     }
     let blob = module.file.custom_data.as_deref()?;
@@ -203,7 +202,7 @@ pub(crate) fn shape_path(module: &ModuleInstance) -> Option<ContentPath> {
     (!text.is_empty()).then_some(path)
 }
 
-/// The sample a 3x Osc's custom waveform plays ([`shape_path`], [`SampleKey::of_path`]): our own
+/// The sample a 3x Osc or Potion custom waveform plays ([`shape_path`], [`SampleKey::of_path`]): our own
 /// `@R@Built-in/Shapes/…` ones from code.
 pub(crate) fn shape_key(module: &ModuleInstance) -> Option<SampleKey> {
     shape_path(module).map(|path| SampleKey::of_path(&path))

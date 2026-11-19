@@ -3,7 +3,7 @@
 //! The online catalogue keeps provider metadata small and links back to Freesound. Preview audio is decoded away from
 //! the audio callback; imported previews are written into the user's My Samples folder with a licence/source sidecar.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc::{Receiver, TryRecvError};
 
 use eframe::egui;

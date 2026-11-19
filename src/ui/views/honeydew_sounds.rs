@@ -3,7 +3,7 @@
 //! The online catalogue keeps provider metadata small and links back to Freesound. Preview audio is decoded away from
 //! the audio callback; imported previews are written into the user's My Samples folder with a licence/source sidecar.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, TryRecvError};
 
 use eframe::egui;
@@ -11,7 +11,6 @@ use honeydew_audio::device::AudioCommand;
 
 use super::{AppCtx, Nav, sample_picker};
 use crate::content::sounds::{Category, SoundAsset};
-use crate::ui::picker_preview::SampleStrip;
 use crate::ui::preset_picker::{PickerAction, PresetPicker};
 
 const SEARCH_PAGE_SIZE: u8 = 30;
@@ -64,11 +63,25 @@ pub struct State {
 }
 
 impl State {
-    fn stop_sample(&mut self, app: &mut AppCtx) {
+    pub(super) fn stop_sample(&mut self, app: &mut AppCtx) {
         #[cfg(not(any(target_arch = "wasm32", target_os = "ios")))]
         if self.playing {
             app.audio.send(AudioCommand::Preview(None));
             self.playing = false;
+        }
+        if let Some(picker) = &mut self.local_picker {
+            picker.stop_sample();
+            sample_picker::preview(picker, app.audio);
+        }
+    }
+
+    pub(super) fn leave(&mut self, app: &mut AppCtx) {
+        self.stop_sample(app);
+        self.close_local(app);
+        #[cfg(not(any(target_arch = "wasm32", target_os = "ios")))]
+        {
+            self.search = None;
+            self.preview = None;
         }
     }
 
@@ -160,10 +173,9 @@ impl State {
 
     #[cfg(not(any(target_arch = "wasm32", target_os = "ios")))]
     fn poll_workers(&mut self, app: &mut AppCtx) {
-        use crate::content::freesound;
-
-        if let Some(search) = &self.search {
-            match search.try_recv() {
+        let search_result = self.search.as_ref().map(|search| search.try_recv());
+        if let Some(result) = search_result {
+            match result {
                 Ok(Ok((count, results))) => {
                     self.search = None;
                     self.total = count;
@@ -210,12 +222,13 @@ impl State {
         }
 
         // Existing local sample picks use the same worker decode and waveform preview as Honeydew's other pickers.
-        if let Some((path, receiver)) = &self.local_loading {
-            match receiver.try_recv() {
+        let local_result = self.local_loading.as_ref().map(|(_, receiver)| receiver.try_recv());
+        if let Some(result) = local_result {
+            match result {
                 Ok(decoded) => {
-                    let path = path.clone();
-                    let wave = decoded.wave;
+                    let path = self.local_loading.as_ref().map(|(path, _)| path.clone()).unwrap_or_default();
                     self.local_loading = None;
+                    let wave = decoded.wave;
                     if let (Some(picker), Some(wave)) = (&mut self.local_picker, wave) {
                         sample_picker::show_strip(picker, &path, Some(wave));
                     } else if let Some(error) = decoded.error {
@@ -257,12 +270,16 @@ pub fn show(state: &mut State, ui: &mut egui::Ui, app: &mut AppCtx) -> Option<Na
 
     if state.local_browser {
         let mut back = false;
-        egui::TopBottomPanel::top("honeydew_sounds_local_header").show(&ctx, |ui| {
-            ui.horizontal(|ui| {
-                back = ui.button("← Honeydew Sounds").clicked();
-                ui.label("Your installed sounds · My Samples · My Recordings");
+        let at = ctx.content_rect().left_top() + egui::vec2(14.0, 14.0);
+        egui::Area::new(egui::Id::new("honeydew_sounds_local_header"))
+            .order(egui::Order::Foreground)
+            .fixed_pos(at)
+            .show(&ctx, |ui| {
+                ui.horizontal(|ui| {
+                    back = ui.button("← Honeydew Sounds").clicked();
+                    ui.label("Your installed sounds · My Samples · My Recordings");
+                });
             });
-        });
         if back {
             state.close_local(app);
         } else {

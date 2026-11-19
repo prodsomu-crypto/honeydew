@@ -2498,6 +2498,7 @@ dependencies = [
  "os-theme",
  "os-ui",
  "serde_json",
+ "tiny-skia",
  "windows-sys 0.61.2",
 ]
 

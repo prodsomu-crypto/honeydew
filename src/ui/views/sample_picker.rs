@@ -15,8 +15,9 @@
 //!   [`drop_clip`]).
 //! - `Replace sample...` in the playlist clip's `More...` ([`show_replace`], issue #64): every clip playing the clip's
 //!   sample takes the pick, once confirmed.
-//! - A module's sample ([`show_module`]): `Custom` picked in a 3x Osc Shape menu, or the Slicer's `LOAD SAMPLE` or a
-//!   tap on its waveform. The root lists `My Files`, then our own factory folder (3x Osc `Shapes`, Slicer `Loops`:
+//! - A module's sample ([`show_module`]): `Custom` picked in a 3x Osc Shape menu, the Slicer's `LOAD SAMPLE` or a
+//!   tap on its waveform, or Potion's `LOAD WAV TABLE` action. Potion imports one audio file as a single-cycle table.
+//!   The root lists `My Files`, then our own factory folder (3x Osc `Shapes`, Slicer `Loops`:
 //!   listed from code, rendered only when played) and imported content's (`3xOsc Shapes`, `Loop Samples`) when it
 //!   is there, its folders first at the root as every factory folder is. Ours list in index order (a factory folder
 //!   keeps it). The pick sets the module's `CSTM` `PATH`.

@@ -1,4 +1,4 @@
-# Wavetable Synth UI Architecture
+# Potion UI Architecture
 
 Honeydew's wavetable synth will use a custom embedded editor, not the generic parameter-knob page.
 

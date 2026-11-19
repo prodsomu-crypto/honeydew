@@ -17,6 +17,7 @@ use honeydew_audio::dwp::Cstm;
 use honeydew_audio::gmsynth::{self, GmSynth};
 use honeydew_audio::instrument::{Instrument, InstrumentModule};
 use honeydew_audio::minisynth::MiniSynth;
+use honeydew_audio::potion_instrument::PotionInstrument;
 use honeydew_audio::soundfont::SoundFontPlayer;
 use honeydew_audio::stream::Rings;
 use honeydew_audio::supersaw::SuperSaw;
@@ -67,6 +68,7 @@ fn instrument(
             samples,
             origin,
         ))),
+        53 => Some(Box::new(PotionInstrument::new(sample_rate))),
         // A hosted plugin (desktop only); its instance outlives engines, so the build is by which plugin it is.
         PLUGIN_INSTRUMENT => {
             module.file.plugin.as_ref().map(|p| p.uid()).hash(origin);

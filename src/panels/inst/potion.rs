@@ -4,9 +4,7 @@
 //! parameter widgets. Each graph is tied to the same normalized module parameters
 //! used by the DSP engine, so the visual controls, automation and playback agree.
 
-use eframe::egui::{
-    Align2, Color32, FontId, Id, Rect, Sense, Shape, Stroke, Ui, pos2, vec2,
-};
+use eframe::egui::{Align2, Color32, FontId, Id, Rect, Sense, Shape, Stroke, Ui, pos2, vec2};
 
 use crate::panels::build::*;
 use crate::song::ModuleInstance;
@@ -168,7 +166,11 @@ fn slider(
     painter.rect_filled(filled, 2.0, ink.gamma_multiply(0.88));
     painter.circle_filled(pos2(bar.left() + bar.width() * v, bar.center().y), 4.0, ink);
 
-    let response = ui.interact(rect, id.with(("potion-slider", param)), Sense::click_and_drag());
+    let response = ui.interact(
+        rect,
+        id.with(("potion-slider", param)),
+        Sense::click_and_drag(),
+    );
     if (response.dragged() || response.clicked())
         && let Some(at) = response.interact_pointer_pos()
     {
@@ -193,7 +195,15 @@ fn toggle(
 ) {
     let on = value(module, param) >= 0.5;
     let painter = ui.painter();
-    painter.rect_filled(rect, 5.0, if on { ink.gamma_multiply(0.24) } else { CARD_HI });
+    painter.rect_filled(
+        rect,
+        5.0,
+        if on {
+            ink.gamma_multiply(0.24)
+        } else {
+            CARD_HI
+        },
+    );
     painter.text(
         rect.center(),
         Align2::CENTER_CENTER,
@@ -223,15 +233,23 @@ fn choice(
         .floor()
         .min(labels.len().saturating_sub(1) as f32) as usize;
     let gap = 3.0;
-    let width = (rect.width() - gap * (labels.len().saturating_sub(1) as f32))
-        / labels.len().max(1) as f32;
+    let width =
+        (rect.width() - gap * (labels.len().saturating_sub(1) as f32)) / labels.len().max(1) as f32;
     for (i, label) in labels.iter().enumerate() {
         let r = Rect::from_min_size(
             pos2(rect.left() + i as f32 * (width + gap), rect.top()),
             vec2(width, rect.height()),
         );
         let active = i == current;
-        ui.painter().rect_filled(r, 4.0, if active { ink.gamma_multiply(0.26) } else { CARD_HI });
+        ui.painter().rect_filled(
+            r,
+            4.0,
+            if active {
+                ink.gamma_multiply(0.26)
+            } else {
+                CARD_HI
+            },
+        );
         text(
             ui,
             r,
@@ -272,7 +290,10 @@ fn osc_page(
         toggle(
             ui,
             id,
-            Rect::from_min_size(pos2(panel.right() - 47.0, panel.top() + 6.0), vec2(39.0, 20.0)),
+            Rect::from_min_size(
+                pos2(panel.right() - 47.0, panel.top() + 6.0),
+                vec2(39.0, 20.0),
+            ),
             module,
             13 + osc,
             if active { "ACTIVE" } else { "BYPASS" },
@@ -323,11 +344,15 @@ fn table_page(
     let selector = Rect::from_min_size(area.left_top(), vec2(area.width(), 29.0));
     for osc in 0..3 {
         let r = Rect::from_min_size(
-            pos2(selector.left() + osc as f32 * (selector.width() / 3.0), selector.top()),
+            pos2(
+                selector.left() + osc as f32 * (selector.width() / 3.0),
+                selector.top(),
+            ),
             vec2(selector.width() / 3.0 - 3.0, 27.0),
         );
         let on = osc == selected;
-        ui.painter().rect_filled(r, 5.0, if on { ink.gamma_multiply(0.25) } else { CARD });
+        ui.painter()
+            .rect_filled(r, 5.0, if on { ink.gamma_multiply(0.25) } else { CARD });
         text(
             ui,
             r,
@@ -354,10 +379,7 @@ fn table_page(
     let wave_rect = graph.shrink2(vec2(13.0, 27.0));
     draw_wave(ui, wave_rect, value(module, 10 + selected), ink);
 
-    let side = Rect::from_min_max(
-        pos2(graph.right() + 8.0, content_top),
-        area.right_bottom(),
-    );
+    let side = Rect::from_min_max(pos2(graph.right() + 8.0, content_top), area.right_bottom());
     card(ui, side, "TABLE CONTROLS", ink);
     let morph = Rect::from_min_size(
         pos2(side.left() + 8.0, side.top() + 31.0),
@@ -386,7 +408,10 @@ fn table_page(
         );
         ui.painter().rect_filled(r, 4.0, CARD_HI);
         text(ui, r, label, 8.2, LABEL, Align2::CENTER_CENTER);
-        if ui.interact(r, id.with(("wave-preset", selected, i)), Sense::click()).clicked() {
+        if ui
+            .interact(r, id.with(("wave-preset", selected, i)), Sense::click())
+            .clicked()
+        {
             let v = [0.0, 0.333, 0.666, 0.999][i];
             put(module, 10 + selected, v, changed);
         }
@@ -441,11 +466,7 @@ fn filter_page(
     let side = Rect::from_min_max(pos2(graph.right() + 8.0, area.top()), area.right_bottom());
     card(ui, side, "FILTER DESIGN", ink);
     let sh = 48.0;
-    let controls = [
-        (19, "CUTOFF"),
-        (22, "RESONANCE"),
-        (44, "ENVELOPE AMOUNT"),
-    ];
+    let controls = [(19, "CUTOFF"), (22, "RESONANCE"), (44, "ENVELOPE AMOUNT")];
     for (i, (param, label)) in controls.into_iter().enumerate() {
         slider(
             ui,
@@ -464,7 +485,10 @@ fn filter_page(
     choice(
         ui,
         id,
-        Rect::from_min_size(pos2(side.left() + 8.0, side.bottom() - 42.0), vec2(side.width() - 16.0, 32.0)),
+        Rect::from_min_size(
+            pos2(side.left() + 8.0, side.bottom() - 42.0),
+            vec2(side.width() - 16.0, 32.0),
+        ),
         module,
         23,
         &["LOW PASS", "BAND PASS", "HIGH PASS"],
@@ -491,12 +515,19 @@ fn envelope_page(
     let s = value(module, 20);
     let r = value(module, 17);
     let p0 = plot.left_bottom();
-    let p1 = pos2(plot.left() + (0.05 + a * 0.28) * plot.width(), plot.top() + 5.0);
-    let p2 = pos2(p1.x + (0.05 + d * 0.27) * plot.width(), plot.bottom() - s * plot.height());
+    let p1 = pos2(
+        plot.left() + (0.05 + a * 0.28) * plot.width(),
+        plot.top() + 5.0,
+    );
+    let p2 = pos2(
+        p1.x + (0.05 + d * 0.27) * plot.width(),
+        plot.bottom() - s * plot.height(),
+    );
     let p3 = pos2(plot.right() - r * plot.width() * 0.38, p2.y);
     let p4 = plot.right_bottom();
     let points = [p0, p1, p2, p3, p4];
-    ui.painter().add(Shape::line(points.to_vec(), Stroke::new(2.2, ink)));
+    ui.painter()
+        .add(Shape::line(points.to_vec(), Stroke::new(2.2, ink)));
     for (i, p) in points.iter().enumerate().skip(1).take(3) {
         ui.painter().circle_filled(*p, 4.0, ink);
         ui.painter().circle_stroke(*p, 6.0, Stroke::new(1.0, BG));
@@ -531,7 +562,10 @@ fn envelope_page(
 
     let filter_top = controls_top + 58.0;
     let filter_h = (area.bottom() - filter_top).max(48.0);
-    let filter = Rect::from_min_size(area.left_bottom() - vec2(0.0, filter_h), vec2(area.width(), filter_h));
+    let filter = Rect::from_min_size(
+        area.left_bottom() - vec2(0.0, filter_h),
+        vec2(area.width(), filter_h),
+    );
     card(ui, filter, "FILTER ENVELOPE · INDEPENDENT SHAPE", ink);
     let sub_w = (area.width() - gap * 3.0) / 4.0;
     for (i, (param, label)) in [
@@ -547,7 +581,10 @@ fn envelope_page(
             ui,
             id,
             Rect::from_min_size(
-                pos2(filter.left() + i as f32 * (sub_w + gap), filter.top() + 30.0),
+                pos2(
+                    filter.left() + i as f32 * (sub_w + gap),
+                    filter.top() + 30.0,
+                ),
                 vec2(sub_w, (filter.height() - 35.0).max(42.0)),
             ),
             module,
@@ -566,7 +603,13 @@ fn lfo_points(rect: Rect, shape: usize) -> Vec<eframe::egui::Pos2> {
             let phase = x.fract();
             let y = match shape {
                 1 => 1.0 - 4.0 * (phase - 0.5).abs(),
-                2 => if phase < 0.5 { 1.0 } else { -1.0 },
+                2 => {
+                    if phase < 0.5 {
+                        1.0
+                    } else {
+                        -1.0
+                    }
+                }
                 _ => (std::f32::consts::TAU * phase).sin(),
             };
             pos2(
@@ -604,16 +647,17 @@ fn modulation_page(
             lfo_points(graph, shape.min(2)),
             Stroke::new(1.8, ink),
         ));
-        let params = [(29 + lfo * 4, "RATE"), (30 + lfo * 4, "DEPTH"), (31 + lfo * 4, "DESTINATION")];
+        let params = [
+            (29 + lfo * 4, "RATE"),
+            (30 + lfo * 4, "DEPTH"),
+            (31 + lfo * 4, "DESTINATION"),
+        ];
         for (i, (param, label)) in params.into_iter().enumerate() {
             slider(
                 ui,
                 id,
                 Rect::from_min_size(
-                    pos2(
-                        panel.left() + 8.0,
-                        graph.bottom() + 6.0 + i as f32 * 45.0,
-                    ),
+                    pos2(panel.left() + 8.0, graph.bottom() + 6.0 + i as f32 * 45.0),
                     vec2(panel.width() - 16.0, 40.0),
                 ),
                 module,
@@ -662,7 +706,10 @@ fn modulation_page(
     choice(
         ui,
         id,
-        Rect::from_min_size(pos2(area.left(), area.bottom() - 34.0), vec2(area.width(), 30.0)),
+        Rect::from_min_size(
+            pos2(area.left(), area.bottom() - 34.0),
+            vec2(area.width(), 30.0),
+        ),
         module,
         40,
         &["PHASE", "FOLD", "SINE DRIVE", "SYNC"],
@@ -686,14 +733,24 @@ fn voice_page(
     let spread = value(module, 26);
     let center = pos2(top.center().x, top.center().y + 12.0);
     for i in 0..count {
-        let p = if count > 1 { i as f32 / (count - 1) as f32 } else { 0.5 };
+        let p = if count > 1 {
+            i as f32 / (count - 1) as f32
+        } else {
+            0.5
+        };
         let x = center.x + (p - 0.5) * top.width() * 0.72 * spread;
         let y = center.y + (p - 0.5) * 34.0 * detune;
-        ui.painter().circle_filled(pos2(x, y), 5.0, ink.gamma_multiply(0.9 - p * 0.25));
+        ui.painter()
+            .circle_filled(pos2(x, y), 5.0, ink.gamma_multiply(0.9 - p * 0.25));
     }
     let gap = 7.0;
     let width = (area.width() - gap * 3.0) / 4.0;
-    let controls = [(24, "UNISON"), (25, "DETUNE"), (26, "STEREO SPREAD"), (27, "GLIDE")];
+    let controls = [
+        (24, "UNISON"),
+        (25, "DETUNE"),
+        (26, "STEREO SPREAD"),
+        (27, "GLIDE"),
+    ];
     for (i, (param, label)) in controls.into_iter().enumerate() {
         slider(
             ui,
@@ -750,10 +807,16 @@ fn mix_page(
         let level = value(module, 1 + osc);
         let r = Rect::from_min_max(
             pos2(x, meter.bottom() - 16.0),
-            pos2(x + 28.0, meter.bottom() - 16.0 - level * (meter.height() - 42.0)),
+            pos2(
+                x + 28.0,
+                meter.bottom() - 16.0 - level * (meter.height() - 42.0),
+            ),
         );
         ui.painter().rect_filled(
-            Rect::from_min_max(pos2(x, meter.top() + 27.0), pos2(x + 28.0, meter.bottom() - 16.0)),
+            Rect::from_min_max(
+                pos2(x, meter.top() + 27.0),
+                pos2(x + 28.0, meter.bottom() - 16.0),
+            ),
             4.0,
             TRACK,
         );
@@ -808,9 +871,13 @@ fn matrix_page(
         let panel = Rect::from_min_size(pos2(x, y), vec2(width, height));
         card(ui, panel, &format!("MOD ROUTE {}", route + 1), ink);
         let base = 47 + route * 3;
-        for (i, (param, label)) in [(base, "SOURCE"), (base + 1, "DESTINATION"), (base + 2, "DEPTH")]
-            .into_iter()
-            .enumerate()
+        for (i, (param, label)) in [
+            (base, "SOURCE"),
+            (base + 1, "DESTINATION"),
+            (base + 2, "DEPTH"),
+        ]
+        .into_iter()
+        .enumerate()
         {
             slider(
                 ui,

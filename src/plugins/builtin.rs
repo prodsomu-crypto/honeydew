@@ -1,5 +1,5 @@
-//! Lemon Studio's own plugins built into the app, on every platform (Lemon Trio and Lemon
-//! Sampler, instruments, and Lemon Parametric EQ, an effect, from `vendor/lemon-studio`). As in Lemon Studio, each is
+//! Lemon Studio's own plugins built into the app on every platform (Lemon Trio and Lemon Sampler, instruments; Lemon
+//! Parametric EQ, Lemon Reverb and Lemon Limiter, effects; from `vendor/lemon-studio`). As in Lemon Studio, each is
 //! compiled in (`linked`: no exported entry points) and hosted through Lemon Studio's CLAP host from its CLAP entry
 //! table, so a module of one is a plugin module like any other (types 1000 and 1001, saved in `HDPm`), only always
 //! installed. Their editors draw into the rack cards (`embed`, `crate::ui::rack::lemon_card`).
@@ -127,7 +127,7 @@ impl Builtin {
         })
     }
 
-    /// Whether it has a sidechain input (Lemon Vocoder's carrier), which a sidechain feeds
+    /// Whether it has a sidechain input (Lemon Vocoder's carrier or Lemon Limiter's key input), which a sidechain feeds
     /// ([`crate::song::ModuleInstance::takes_key`]). Read at the first call, from an instance made to ask
     /// (`os_host::Plugin::sidechain`).
     pub fn sidechain(&self) -> bool {
@@ -296,8 +296,8 @@ mod tests {
                 ),
             ]
         );
-        // 0.4.9's effects: Lemon Small FX's ten, one plugin each, Lemon Delay, Lemon Vocoder, Press and Pulp Filter, each
-        // with its VST3 copy's class id and its editor's size; only Lemon Vocoder has a sidechain input.
+        // The effects after the first nine: Lemon Small FX's ten, Lemon Delay, Lemon Vocoder, Press, Pulp Filter,
+        // Lemon Reverb and Lemon Limiter, each with its VST3 copy's class id and editor size.
         let added: Vec<_> = (got[9..].iter())
             .map(|&(name, uid, class, _)| {
                 (
@@ -366,7 +366,7 @@ mod tests {
             .filter(|b| b.sidechain())
             .map(|b| b.name)
             .collect();
-        assert_eq!(keyed, ["Lemon Vocoder"]);
+        assert_eq!(keyed, ["Lemon Vocoder", "Lemon Limiter"]);
         // Each one starts and plays a block (an instrument a note, an effect a sine), every sample finite.
         for b in super::all() {
             let plugin = b.lib.clone().create(&b.desc.id).unwrap();

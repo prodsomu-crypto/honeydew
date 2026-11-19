@@ -33,8 +33,8 @@ crc32fast = "1"
 # SHA-256 of the sound library's downloaded parts against their index (#66, `content::install::download`). RustCrypto's,
 # pure Rust: the same on the desktop, Android and FreeBSD.
 sha2 = { version = "0.10.9", default-features = false }
-# Lemon Studio's own plugins (Lemon Trio, Lemon Sampler, Lemon Parametric EQ) built into the
-# app on every platform, hosted through Lemon Studio's CLAP host, their editors drawn into the rack cards
+# Lemon Studio's own plugins built into the app on every platform, hosted through Lemon Studio's CLAP host,
+# their full visual editors drawn into the rack cards
 # (`vendor/lemon-studio/README.md`, `src/plugins/builtin.rs`). A new one is a line here and its crate in
 # `src/plugins/builtin.rs`'s `lemon_plugins!` list.
 lemon-3x-osc = { path = "vendor/lemon-studio/lemon-3x-osc", features = ["linked", "embed"] }

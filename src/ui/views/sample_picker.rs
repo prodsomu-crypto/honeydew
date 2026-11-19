@@ -739,9 +739,9 @@ pub fn show_module(
         return Some(Nav::Close);
     };
     let make = |files: &ProjectFiles| module_picker(files, type_id);
-    // A 3x Osc's closes on a pick, so no sample strip: hidden, it waits for the pick to land. Any other previews its
+    // 3x Osc and Potion close on a wavetable pick, so no sample strip: hidden, they wait for the table to land. Any other previews its
     // picks in the strip and loads the last one on its close.
-    let shape = type_id == three_osc::TYPE_ID;
+    let shape = type_id == three_osc::TYPE_ID || type_id == 53;
     let into = |song: &Song, path: &Path, files: &ProjectFiles| {
         slicer_pick(song.find_module(channel, module)?, path, files)
     };

@@ -101,7 +101,11 @@ impl State {
         if let Some(result) = local_result {
             match result {
                 Ok(decoded) => {
-                    let path = self.local_loading.as_ref().map(|(path, _)| path.clone()).unwrap_or_default();
+                    let path = self
+                        .local_loading
+                        .as_ref()
+                        .map(|(path, _)| path.clone())
+                        .unwrap_or_default();
                     self.local_loading = None;
                     let wave = decoded.wave;
                     if let (Some(picker), Some(wave)) = (&mut self.local_picker, wave) {
@@ -149,17 +153,29 @@ impl State {
                 thread::spawn(move || {
                     let result = (|| {
                         let path = temporary_file("search");
-                        let downloaded = update::get_with_header(&url, &path, &authorization, &|_| ())
-                            .map_err(|err| err.to_string());
+                        let downloaded =
+                            update::get_with_header(&url, &path, &authorization, &|_| ())
+                                .map_err(|err| err.to_string());
                         let result = downloaded.and_then(|_| {
-                            let size = std::fs::metadata(&path).map_err(|err| err.to_string())?.len();
+                            let size = std::fs::metadata(&path)
+                                .map_err(|err| err.to_string())?
+                                .len();
                             if size > 4 * 1024 * 1024 {
-                                return Err("Freesound returned a catalogue response that is too large.".into());
+                                return Err(
+                                    "Freesound returned a catalogue response that is too large."
+                                        .into(),
+                                );
                             }
                             let bytes = std::fs::read(&path).map_err(|err| err.to_string())?;
                             let response: crate::content::freesound::SearchResponse =
-                                serde_json::from_slice(&bytes).map_err(|err| format!("Could not read Freesound results: {err}"))?;
-                            let assets = response.results.into_iter().filter_map(|result| result.into_asset()).collect();
+                                serde_json::from_slice(&bytes).map_err(|err| {
+                                    format!("Could not read Freesound results: {err}")
+                                })?;
+                            let assets = response
+                                .results
+                                .into_iter()
+                                .filter_map(|result| result.into_asset())
+                                .collect();
                             Ok((response.count, assets))
                         });
                         let _ = std::fs::remove_file(&path);
@@ -188,14 +204,21 @@ impl State {
                 let path = temporary_file("preview");
                 let downloaded = update::get(&url, &path, &|_| ()).map_err(|err| err.to_string());
                 let result = downloaded.and_then(|_| {
-                    let size = std::fs::metadata(&path).map_err(|err| err.to_string())?.len();
+                    let size = std::fs::metadata(&path)
+                        .map_err(|err| err.to_string())?
+                        .len();
                     if size == 0 || size > MAX_PREVIEW_BYTES {
                         return Err("Preview is empty or larger than 32 MiB.".into());
                     }
                     let bytes = std::fs::read(&path).map_err(|err| err.to_string())?;
-                    let sample = honeydew_audio::sample::decode(&bytes)
-                        .map_err(|err| format!("Honeydew could not decode this preview: {err:?}"))?;
-                    Ok(PreviewReady { sample, bytes, extension })
+                    let sample = honeydew_audio::sample::decode(&bytes).map_err(|err| {
+                        format!("Honeydew could not decode this preview: {err:?}")
+                    })?;
+                    Ok(PreviewReady {
+                        sample,
+                        bytes,
+                        extension,
+                    })
                 });
                 let _ = std::fs::remove_file(&path);
                 result
@@ -219,7 +242,10 @@ impl State {
                     self.status = if self.results.is_empty() {
                         "No reusable previews matched. Try a broader search.".into()
                     } else {
-                        format!("{} reusable results on this page · licences are shown per sound", self.results.len())
+                        format!(
+                            "{} reusable results on this page · licences are shown per sound",
+                            self.results.len()
+                        )
                     };
                 }
                 Ok(Err(err)) => {
@@ -234,11 +260,17 @@ impl State {
             }
         }
 
-        let ready = self.preview.as_ref().and_then(|(id, rx)| match rx.try_recv() {
-            Ok(result) => Some((id.clone(), result)),
-            Err(TryRecvError::Empty) => None,
-            Err(TryRecvError::Disconnected) => Some((id.clone(), Err("Preview worker stopped unexpectedly.".into()))),
-        });
+        let ready = self
+            .preview
+            .as_ref()
+            .and_then(|(id, rx)| match rx.try_recv() {
+                Ok(result) => Some((id.clone(), result)),
+                Err(TryRecvError::Empty) => None,
+                Err(TryRecvError::Disconnected) => Some((
+                    id.clone(),
+                    Err("Preview worker stopped unexpectedly.".into()),
+                )),
+            });
         if let Some((id, result)) = ready {
             self.preview = None;
             match result {
@@ -247,7 +279,8 @@ impl State {
                     app.audio.send(AudioCommand::Preview(Some((sample, 0))));
                     self.playing = true;
                     self.cached_preview = Some((id, ready.bytes, ready.extension));
-                    self.status = "Preview playing. Import saves it with a source/licence note.".into();
+                    self.status =
+                        "Preview playing. Import saves it with a source/licence note.".into();
                 }
                 Err(err) => {
                     self.cached_preview = None;
@@ -271,7 +304,11 @@ fn temporary_file(kind: &str) -> PathBuf {
 
 #[cfg(not(any(target_arch = "wasm32", target_os = "ios")))]
 fn preview_extension(url: &str) -> &'static str {
-    let path = url.split(['?', '#']).next().unwrap_or(url).to_ascii_lowercase();
+    let path = url
+        .split(['?', '#'])
+        .next()
+        .unwrap_or(url)
+        .to_ascii_lowercase();
     if path.ends_with(".ogg") { "ogg" } else { "mp3" }
 }
 
@@ -303,11 +340,13 @@ pub fn show(state: &mut State, ui: &mut egui::Ui, app: &mut AppCtx) -> Option<Na
             };
             match action {
                 Some(PickerAction::Pick(path)) => {
-                    state.local_loading = Some((path.clone(), sample_picker::decode_file(app.files, &path)));
+                    state.local_loading =
+                        Some((path.clone(), sample_picker::decode_file(app.files, &path)));
                 }
                 Some(PickerAction::Import) => {
                     if let Some(user) = app.files.user_dir().map(Path::to_owned) {
-                        app.files.import_audio(user.join(crate::project_files::SAMPLES_FOLDER));
+                        app.files
+                            .import_audio(user.join(crate::project_files::SAMPLES_FOLDER));
                     }
                 }
                 Some(PickerAction::Close) => state.close_local(app),

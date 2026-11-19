@@ -47,6 +47,9 @@ pub struct PotionParams {
     pub velocity_sensitivity: f32,
     pub filter_env_amount: f32,
     pub polyphony: usize,
+    pub pitch_bend: f32,
+    pub mod_wheel: f32,
+    pub aftertouch: f32,
     /// Four simple modulation routes: source, destination and signed depth.
     /// Sources: LFO 1, LFO 2, amp envelope, velocity. Destinations: pitch, filter, pan, osc 1/2/3 level.
     pub mod_source: [u8; 4],
@@ -88,6 +91,9 @@ impl Default for PotionParams {
             velocity_sensitivity: 0.7,
             filter_env_amount: 0.0,
             polyphony: MAX_VOICES,
+            pitch_bend: 0.0,
+            mod_wheel: 0.0,
+            aftertouch: 0.0,
             mod_source: [0, 1, 2, 3],
             mod_destination: [0, 1, 2, 3],
             mod_amount: [0.0; 4],
@@ -103,6 +109,9 @@ struct Voice {
     pitch: f32,
     velocity: f32,
     pan: f32,
+    slide_pitch: f32,
+    slide_pan: f32,
+    slide_velocity: f32,
     envelope: f32,
     /// 0 attack, 1 decay, 2 sustain, 3 release.
     amp_stage: u8,
@@ -226,6 +235,15 @@ impl PotionEngine {
         }
     }
 
+    /// Applies the host's current slide offsets to every sounding voice.
+    pub fn set_slide(&mut self, pitch: f32, pan: f32, velocity: f32) {
+        for voice in self.voices.iter_mut().filter(|voice| voice.active) {
+            voice.slide_pitch = pitch.clamp(-48.0, 48.0);
+            voice.slide_pan = pan.clamp(-1.0, 1.0);
+            voice.slide_velocity = velocity.clamp(-1.0, 1.0);
+        }
+    }
+
     /// Adds one rendered block to the supplied stereo buffers. Buffers must have equal lengths.
     pub fn render(&mut self, left: &mut [f32], right: &mut [f32], params: &PotionParams) {
         let len = left.len().min(right.len());
@@ -285,7 +303,9 @@ impl PotionEngine {
                 }
 
                 voice.pitch += (voice.target_pitch - voice.pitch) * glide_step;
-                let base_hz = 440.0 * 2.0f32.powf((voice.pitch - 69.0) / 12.0);
+                let base_hz = 440.0 * 2.0f32.powf(
+                    (voice.pitch + voice.slide_pitch + params.pitch_bend - 69.0) / 12.0,
+                );
                 let lfo_a = lfo_value(voice.lfo_phase[0], params.lfo_wave[0]);
                 let lfo_b = lfo_value(voice.lfo_phase[1], params.lfo_wave[1]);
                 for lfo in 0..2 {
@@ -309,11 +329,13 @@ impl PotionEngine {
                     }
                 }
                 for route in 0..4 {
-                    let source = match params.mod_source[route].min(3) {
+                    let source = match params.mod_source[route].min(5) {
                         0 => lfo_a,
                         1 => lfo_b,
                         2 => voice.envelope,
-                        _ => voice.velocity * 2.0 - 1.0,
+                        3 => voice.velocity * 2.0 - 1.0,
+                        4 => params.mod_wheel * 2.0 - 1.0,
+                        _ => params.aftertouch * 2.0 - 1.0,
                     };
                     let depth = source * params.mod_amount[route].clamp(-1.0, 1.0);
                     match params.mod_destination[route].min(5) {
@@ -371,6 +393,7 @@ impl PotionEngine {
                         }
                         let pan = (params.pan[osc]
                             + voice.pan
+                            + voice.slide_pan
                             + (position * 2.0 - 1.0) * spread * 0.75
                             + pan_mod)
                             .clamp(-1.0, 1.0);
@@ -411,7 +434,7 @@ impl PotionEngine {
                     + filter_mod
                     + key_track)
                     .clamp(0.0, 1.0);
-                let cutoff_hz = 35.0 * (18_000.0f32 / 35.0).powf(cutoff_norm);
+                let cutoff_hz = (35.0 * (18_000.0f32 / 35.0).powf(cutoff_norm)).min(sr * 0.45);
                 let g = (std::f32::consts::PI * cutoff_hz / sr).tan().clamp(0.0001, 10.0);
                 let k = 2.0 - params.filter_resonance.clamp(0.0, 1.0) * 1.9;
                 let a1 = (1.0 + g * (g + k)).recip();
@@ -439,8 +462,9 @@ impl PotionEngine {
                         params.filter_mode,
                     ),
                 );
+                let velocity = (voice.velocity + voice.slide_velocity).clamp(0.0, 1.0);
                 let velocity_gain =
-                    (1.0 - velocity_sensitivity) + voice.velocity * velocity_sensitivity;
+                    (1.0 - velocity_sensitivity) + velocity * velocity_sensitivity;
                 let gain = voice.envelope * velocity_gain * master;
                 left[i] += filtered_l * gain;
                 right[i] += filtered_r * gain;

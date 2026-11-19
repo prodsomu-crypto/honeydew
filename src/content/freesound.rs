@@ -159,3 +159,90 @@ mod tests {
         assert!(serde_json::from_str::<SoundResult>(no_preview).unwrap().into_asset().is_none());
     }
 }
+
+
+/// Upper bound for a search response before JSON parsing.
+pub const MAX_SEARCH_RESPONSE_BYTES: usize = 2 * 1024 * 1024;
+
+/// One page of eligible Freesound results. `total` is the provider's unfiltered result count.
+#[derive(Debug, Default)]
+pub struct SearchPage {
+    pub total: u64,
+    pub assets: Vec<SoundAsset>,
+}
+
+/// Errors surfaced by the asynchronous search request. Credential values are never included.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SearchError {
+    MissingCredential,
+    InvalidCredential,
+    InvalidQuery,
+    Http(String),
+    HttpStatus(u16),
+    ResponseTooLarge,
+    InvalidJson,
+}
+
+impl std::fmt::Display for SearchError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::MissingCredential => f.write_str("Freesound API credential is not configured."),
+            Self::InvalidCredential => f.write_str("Freesound API credential contains invalid characters."),
+            Self::InvalidQuery => f.write_str("Search text is too long."),
+            Self::Http(_) => f.write_str("Could not reach Freesound. Check the connection and try again."),
+            Self::HttpStatus(401) => f.write_str("Freesound did not accept the configured API credential."),
+            Self::HttpStatus(429) => f.write_str("Freesound search is temporarily rate-limited. Try again later."),
+            Self::HttpStatus(_) => f.write_str("Freesound returned an unsuccessful response."),
+            Self::ResponseTooLarge => f.write_str("Freesound returned more search data than Honeydew allows."),
+            Self::InvalidJson => f.write_str("Freesound returned an unreadable search response."),
+        }
+    }
+}
+
+/// Start a non-blocking search. The callback runs when the HTTP request completes; callers should
+/// forward its result to the UI thread with a channel and must not call this from the audio thread.
+///
+/// The credential is sent only in the Authorization header, never in the URL. Do not log the
+/// request or its headers. This function intentionally does not persist credentials.
+pub fn search_async(
+    query: String,
+    page: u32,
+    page_size: u8,
+    api_key: String,
+    done: impl FnOnce(Result<SearchPage, SearchError>) + Send + 'static,
+) -> Result<(), SearchError> {
+    use std::time::Duration;
+
+    let key = api_key.trim();
+    if key.is_empty() {
+        return Err(SearchError::MissingCredential);
+    }
+    if key.len() > 512 || key.bytes().any(|b| b.is_ascii_control() || b.is_ascii_whitespace()) {
+        return Err(SearchError::InvalidCredential);
+    }
+    if query.len() > 256 {
+        return Err(SearchError::InvalidQuery);
+    }
+
+    let request = ehttp::Request::get(search_url(&query, page, page_size))
+        .with_header("Authorization", format!("Token {key}"))
+        .with_header("Accept", "application/json")
+        .with_timeout(Some(Duration::from_secs(20)));
+
+    ehttp::fetch(request, move |response| {
+        let result = response.map_err(|_| SearchError::Http("request failed".into())).and_then(|response| {
+            if !response.ok {
+                return Err(SearchError::HttpStatus(response.status));
+            }
+            if response.bytes.len() > MAX_SEARCH_RESPONSE_BYTES {
+                return Err(SearchError::ResponseTooLarge);
+            }
+            let parsed: SearchResponse =
+                serde_json::from_slice(&response.bytes).map_err(|_| SearchError::InvalidJson)?;
+            let assets = parsed.results.into_iter().filter_map(SoundResult::into_asset).collect();
+            Ok(SearchPage { total: parsed.count, assets })
+        });
+        done(result);
+    });
+    Ok(())
+}

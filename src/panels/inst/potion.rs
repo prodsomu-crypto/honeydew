@@ -127,6 +127,47 @@ fn draw_wave(ui: &Ui, rect: Rect, morph: f32, ink: Color32) {
     ));
 }
 
+fn time_label(normalized: f32, maximum_seconds: f32) -> String {
+    let seconds = 0.001 * (maximum_seconds / 0.001).powf(normalized.clamp(0.0, 1.0));
+    if seconds < 1.0 {
+        format!("{:.0} ms", seconds * 1000.0)
+    } else {
+        format!("{seconds:.1} s")
+    }
+}
+
+fn frequency_label(hz: f32) -> String {
+    if hz >= 1000.0 {
+        format!("{:.2} kHz", hz / 1000.0)
+    } else {
+        format!("{hz:.1} Hz")
+    }
+}
+
+/// Displays the value in the unit the sound designer is actually shaping, not normalized host space.
+fn slider_value_label(param: usize, value: f32) -> String {
+    let value = value.clamp(0.0, 1.0);
+    match param {
+        1..=3 | 18 | 20 | 22 | 26 | 30 | 34 | 37..=39 | 41..=44 | 61 => {
+            format!("{:.0}%", value * 100.0)
+        }
+        4..=6 => format!("{:+.0}%", (value * 2.0 - 1.0) * 100.0),
+        7..=9 => format!("{:+.1} st", value * 96.0 - 48.0),
+        10..=12 => format!("{:.0}% tbl", value * 100.0),
+        16 | 21 | 59 | 60 => time_label(value, 8.0),
+        17 | 62 => time_label(value, 12.0),
+        19 => frequency_label(35.0 * (18_000.0f32 / 35.0).powf(value)),
+        24 => format!("{} voices", 1 + (value * 6.0).round() as usize),
+        25 => format!("{:.0} ct", value * 50.0),
+        27 => time_label(value, 2.0),
+        28 => ["POLY", "MONO", "LEGATO"][(value * 2.0).round() as usize].to_owned(),
+        29 | 33 => frequency_label(0.03 * (20.0f32 / 0.03).powf(value)),
+        45 => format!("{} voices", 1 + (value * 31.0).round() as usize),
+        49 | 52 | 55 | 58 => format!("{:+.0}%", (value * 2.0 - 1.0) * 100.0),
+        _ => format!("{value:.2}"),
+    }
+}
+
 fn slider(
     ui: &mut Ui,
     id: Id,
@@ -150,7 +191,7 @@ fn slider(
     painter.text(
         pos2(rect.right() - 7.0, rect.top() + 5.0),
         Align2::RIGHT_TOP,
-        format!("{v:.2}"),
+        slider_value_label(param, v),
         FontId::monospace(9.0),
         LABEL,
     );

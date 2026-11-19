@@ -13,7 +13,9 @@ use crate::ui::buttons::filled_circle_button;
 const CLOSE: f32 = 1.5;
 const CLOSE_AT: (f32, f32) = (2.1, 0.2);
 
-const PAGES: [&str; 8] = ["OSC", "TABLE", "FILTER", "ENV", "MOD", "VOICE", "MIX", "MATRIX"];
+const PAGES: [&str; 8] = [
+    "OSC", "TABLE", "FILTER", "ENV", "MOD", "VOICE", "MIX", "MATRIX",
+];
 
 #[derive(Default)]
 pub struct State {

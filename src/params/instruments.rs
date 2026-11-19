@@ -1066,69 +1066,69 @@ const SOUNDFONT_PLAYER: &[P] = &[
 ];
 
 const POTION: &[P] = &[
-    P::ENABLE,                             // 0
-    P::plain("Osc 1 Level", 0.7),          // 1
-    P::plain("Osc 2 Level", 0.35),         // 2
-    P::plain("Osc 3 Level", 0.2),          // 3
-    P::plain("Osc 1 Pan", 0.325),          // 4
-    P::plain("Osc 2 Pan", 0.675),          // 5
-    P::plain("Osc 3 Pan", 0.5),            // 6
-    P::plain("Osc 1 Pitch", 0.5),          // 7
-    P::plain("Osc 2 Pitch", 0.375),        // 8
-    P::plain("Osc 3 Pitch", 0.25),         // 9
-    P::plain("Osc 1 Wave", 0.0),           // 10
-    P::plain("Osc 2 Wave", 0.0),           // 11
-    P::plain("Osc 3 Wave", 0.0),           // 12
-    P::toggle("Osc 1 On", 1.0),            // 13
-    P::toggle("Osc 2 On", 1.0),            // 14
-    P::toggle("Osc 3 On", 1.0),            // 15
-    P::plain("Attack", 0.2562),            // 16
-    P::plain("Release", 0.5531),           // 17
-    P::plain("Master", 0.7),               // 18
-    P::plain("Filter Cutoff", 1.0),        // 19
-    P::plain("Sustain", 0.8),              // 20
-    P::plain("Decay", 0.614),              // 21: 0.25 s
-    P::plain("Filter Resonance", 0.12),    // 22
-    P::plain("Filter Mode", 0.0),          // 23: LP / BP / HP
-    P::plain("Unison", 0.0),               // 24: 1..7 voices per oscillator
-    P::plain("Detune", 0.16),              // 25
-    P::plain("Stereo Spread", 0.65),       // 26
-    P::plain("Glide", 0.0),                // 27
-    P::plain("Voice Mode", 0.0),           // 28: poly / mono / legato
-    P::plain("LFO 1 Rate", 0.5),           // 29
-    P::plain("LFO 1 Amount", 0.0),         // 30
-    P::plain("LFO 1 Target", 0.0),         // 31
-    P::plain("LFO 1 Shape", 0.0),          // 32
-    P::plain("LFO 2 Rate", 0.35),          // 33
-    P::plain("LFO 2 Amount", 0.0),         // 34
-    P::plain("LFO 2 Target", 0.5),         // 35
-    P::plain("LFO 2 Shape", 0.5),          // 36
-    P::plain("FM Amount", 0.0),            // 37
-    P::plain("Ring Amount", 0.0),          // 38
-    P::plain("Warp Amount", 0.0),          // 39
-    P::plain("Warp Mode", 0.0),            // 40
-    P::plain("Sub Level", 0.0),            // 41
-    P::plain("Noise Level", 0.0),          // 42
-    P::plain("Velocity", 0.7),             // 43
-    P::plain("Filter Env", 0.0),           // 44
-    P::plain("Polyphony", 1.0),            // 45
-    P::plain("Table Import Action", 0.0),  // 46 reserved to keep later parameter indices stable
-    P::plain("Mod 1 Source", 0.0),         // 47
-    P::plain("Mod 1 Target", 0.0),         // 48
-    P::plain("Mod 1 Depth", 0.5),          // 49
-    P::plain("Mod 2 Source", 0.2),         // 50
-    P::plain("Mod 2 Target", 0.2),         // 51
-    P::plain("Mod 2 Depth", 0.5),          // 52
-    P::plain("Mod 3 Source", 0.4),         // 53
-    P::plain("Mod 3 Target", 0.4),         // 54
-    P::plain("Mod 3 Depth", 0.5),          // 55
-    P::plain("Mod 4 Source", 0.6),         // 56
-    P::plain("Mod 4 Target", 0.6),         // 57
-    P::plain("Mod 4 Depth", 0.5),          // 58
-    P::plain("Filter Attack", 0.2562),     // 59: 0.01 s
-    P::plain("Filter Decay", 0.614),       // 60: 0.25 s
-    P::plain("Filter Sustain", 0.7),       // 61
-    P::plain("Filter Release", 0.5531),    // 62: 0.18 s
+    P::ENABLE,                            // 0
+    P::plain("Osc 1 Level", 0.7),         // 1
+    P::plain("Osc 2 Level", 0.35),        // 2
+    P::plain("Osc 3 Level", 0.2),         // 3
+    P::plain("Osc 1 Pan", 0.325),         // 4
+    P::plain("Osc 2 Pan", 0.675),         // 5
+    P::plain("Osc 3 Pan", 0.5),           // 6
+    P::plain("Osc 1 Pitch", 0.5),         // 7
+    P::plain("Osc 2 Pitch", 0.375),       // 8
+    P::plain("Osc 3 Pitch", 0.25),        // 9
+    P::plain("Osc 1 Wave", 0.0),          // 10
+    P::plain("Osc 2 Wave", 0.0),          // 11
+    P::plain("Osc 3 Wave", 0.0),          // 12
+    P::toggle("Osc 1 On", 1.0),           // 13
+    P::toggle("Osc 2 On", 1.0),           // 14
+    P::toggle("Osc 3 On", 1.0),           // 15
+    P::plain("Attack", 0.2562),           // 16
+    P::plain("Release", 0.5531),          // 17
+    P::plain("Master", 0.7),              // 18
+    P::plain("Filter Cutoff", 1.0),       // 19
+    P::plain("Sustain", 0.8),             // 20
+    P::plain("Decay", 0.614),             // 21: 0.25 s
+    P::plain("Filter Resonance", 0.12),   // 22
+    P::plain("Filter Mode", 0.0),         // 23: LP / BP / HP
+    P::plain("Unison", 0.0),              // 24: 1..7 voices per oscillator
+    P::plain("Detune", 0.16),             // 25
+    P::plain("Stereo Spread", 0.65),      // 26
+    P::plain("Glide", 0.0),               // 27
+    P::plain("Voice Mode", 0.0),          // 28: poly / mono / legato
+    P::plain("LFO 1 Rate", 0.5),          // 29
+    P::plain("LFO 1 Amount", 0.0),        // 30
+    P::plain("LFO 1 Target", 0.0),        // 31
+    P::plain("LFO 1 Shape", 0.0),         // 32
+    P::plain("LFO 2 Rate", 0.35),         // 33
+    P::plain("LFO 2 Amount", 0.0),        // 34
+    P::plain("LFO 2 Target", 0.5),        // 35
+    P::plain("LFO 2 Shape", 0.5),         // 36
+    P::plain("FM Amount", 0.0),           // 37
+    P::plain("Ring Amount", 0.0),         // 38
+    P::plain("Warp Amount", 0.0),         // 39
+    P::plain("Warp Mode", 0.0),           // 40
+    P::plain("Sub Level", 0.0),           // 41
+    P::plain("Noise Level", 0.0),         // 42
+    P::plain("Velocity", 0.7),            // 43
+    P::plain("Filter Env", 0.0),          // 44
+    P::plain("Polyphony", 1.0),           // 45
+    P::plain("Table Import Action", 0.0), // 46 reserved to keep later parameter indices stable
+    P::plain("Mod 1 Source", 0.0),        // 47
+    P::plain("Mod 1 Target", 0.0),        // 48
+    P::plain("Mod 1 Depth", 0.5),         // 49
+    P::plain("Mod 2 Source", 0.2),        // 50
+    P::plain("Mod 2 Target", 0.2),        // 51
+    P::plain("Mod 2 Depth", 0.5),         // 52
+    P::plain("Mod 3 Source", 0.4),        // 53
+    P::plain("Mod 3 Target", 0.4),        // 54
+    P::plain("Mod 3 Depth", 0.5),         // 55
+    P::plain("Mod 4 Source", 0.6),        // 56
+    P::plain("Mod 4 Target", 0.6),        // 57
+    P::plain("Mod 4 Depth", 0.5),         // 58
+    P::plain("Filter Attack", 0.2562),    // 59: 0.01 s
+    P::plain("Filter Decay", 0.614),      // 60: 0.25 s
+    P::plain("Filter Sustain", 0.7),      // 61
+    P::plain("Filter Release", 0.5531),   // 62: 0.18 s
 ];
 
 pub static MODULES: &[ModuleSpec] = &[

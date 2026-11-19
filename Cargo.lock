@@ -1977,6 +1977,7 @@ dependencies = [
  "lemon-balance",
  "lemon-chorus",
  "lemon-delay",
+ "lemon-limiter",
  "lemon-drum-sampler",
  "lemon-fast-distortion",
  "lemon-filter",
@@ -1985,6 +1986,7 @@ dependencies = [
  "lemon-parametric-eq-2",
  "lemon-peak-controller",
  "lemon-phaser",
+ "lemon-reverb",
  "lemon-sampler",
  "lemon-slicer",
  "lemon-soft-clipper",
@@ -2439,6 +2441,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "lemon-limiter"
+version = "0.0.1"
+dependencies = [
+ "nih_plug",
+ "os-engine",
+ "os-hostlink",
+ "os-plugkit",
+ "os-theme",
+ "os-ui",
+ "serde_json",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "lemon-parametric-eq-2"
 version = "0.0.1"
 dependencies = [
@@ -2469,6 +2485,20 @@ dependencies = [
  "lemon-small-fx",
  "nih_plug",
  "os-plugkit",
+]
+
+[[package]]
+name = "lemon-reverb"
+version = "0.0.1"
+dependencies = [
+ "nih_plug",
+ "os-engine",
+ "os-hostlink",
+ "os-plugkit",
+ "os-theme",
+ "os-ui",
+ "serde_json",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

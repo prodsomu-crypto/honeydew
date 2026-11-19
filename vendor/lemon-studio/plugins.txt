@@ -17,6 +17,8 @@ lemon-filter
 lemon-flanger
 lemon-phaser
 lemon-delay
+lemon-reverb
+lemon-limiter
 lemon-vocoder
 press
 pulp-filter

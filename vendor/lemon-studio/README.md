@@ -37,7 +37,7 @@ allocate on the audio thread), and commit. Set `LEMON_REPO` to a local clone to 
 `lemon-effects` workflow checks every week whether upstream's `main` changed these files since the pinned commit, and
 opens or updates the issue "Lemon Studio effects changed upstream" (closing it once they match again).
 
-## The plugins (Lemon Trio, Lemon Sampler, Lemon Parametric EQ)
+## The plugins (Lemon Studio's built-ins)
 
 Lemon Studio's own plugins are built into Honeydew on every platform, as in Lemon Studio:
 compiled in with their `linked` feature (no exported entry points) and hosted through `os-clap` from their CLAP entry
@@ -50,7 +50,7 @@ commit:
 - Since 0.4.9, effects: `plugins/lemon-small-fx` (the plugin, parameters and editor Lemon Studio's small
   effects share) and its ten plugins, one crate each (`lemon-soft-clipper`, `lemon-fast-distortion`, `lemon-balance`,
   `lemon-stereo-enhancer`, `lemon-transient-processor`, `lemon-chorus`, `lemon-stereo-shaper`, `lemon-filter`,
-  `lemon-flanger`, `lemon-phaser`), `plugins/lemon-delay`, `plugins/lemon-vocoder` (its carrier a sidechain, below),
+  `lemon-flanger`, `lemon-phaser`), `plugins/lemon-delay`, `plugins/lemon-reverb` (plate reverb), `plugins/lemon-limiter` (limiter, compressor and noise gate), `plugins/lemon-vocoder` (its carrier a sidechain, below),
   `plugins/press` and `plugins/pulp-filter`.
 - `plugins/tesla` (Tesla, Lemon's audio editor and recorder, an effect; since 0.4.9): its `src/`.
 - Since 0.4.9, the instruments `plugins/citrus` (Citrus), `plugins/lemon-drum-sampler` (Lemon Drum Sampler)

@@ -53,6 +53,8 @@ const ENTRIES: &[*const c_void] = &lemon_plugins![
     lemon_vocoder,
     press,
     pulp_filter,
+    lemon_reverb,
+    lemon_limiter,
 ];
 
 /// Each one's VST3 copy's class id, by CLAP id: upstream's `Vst3Plugin::VST3_CLASS_ID` (`plugins/*/src/lib.rs`), which
@@ -78,6 +80,8 @@ const VST3_CLASSES: &[(&str, &[u8; 16])] = &[
     ("org.openstudio.lemon-vocoder", b"LemonStudioVocdr"),
     ("org.openstudio.press", b"LemonStudioPress"),
     ("org.openstudio.pulp-filter", b"LemonStudioPulpF"),
+    ("org.openstudio.lemon-reverb", b"LemonStudioRevrb"),
+    ("org.openstudio.lemon-limiter", b"LemonStudioLimit"),
     ("org.openstudio.citrus", b"LemonStudioCitrs"),
     ("org.openstudio.lemon-drum-sampler", b"LemonStudioDrums"),
     ("org.openstudio.lemon-slicer", b"LemonStudioSlicr"),
@@ -345,6 +349,8 @@ mod tests {
             row("Lemon Vocoder", "lemon-vocoder", "LemonStudioVocdr"),
             row("Press", "press", "LemonStudioPress"),
             row("Pulp Filter", "pulp-filter", "LemonStudioPulpF"),
+            row("Lemon Reverb", "lemon-reverb", "LemonStudioRevrb"),
+            row("Lemon Limiter", "lemon-limiter", "LemonStudioLimit"),
         ];
         let want: Vec<_> = (want.iter())
             .map(|(n, u, c)| (*n, u.as_str(), c.clone()))

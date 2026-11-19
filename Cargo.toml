@@ -51,6 +51,8 @@ lemon-filter = { path = "vendor/lemon-studio/lemon-filter", features = ["linked"
 lemon-flanger = { path = "vendor/lemon-studio/lemon-flanger", features = ["linked", "embed"] }
 lemon-phaser = { path = "vendor/lemon-studio/lemon-phaser", features = ["linked", "embed"] }
 lemon-delay = { path = "vendor/lemon-studio/lemon-delay", features = ["linked", "embed"] }
+lemon-reverb = { path = "vendor/lemon-studio/lemon-reverb", features = ["linked", "embed"] }
+lemon-limiter = { path = "vendor/lemon-studio/lemon-limiter", features = ["linked", "embed"] }
 lemon-vocoder = { path = "vendor/lemon-studio/lemon-vocoder", features = ["linked", "embed"] }
 press = { path = "vendor/lemon-studio/press", features = ["linked", "embed"] }
 pulp-filter = { path = "vendor/lemon-studio/pulp-filter", features = ["linked", "embed"] }

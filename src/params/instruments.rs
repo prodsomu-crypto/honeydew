@@ -1087,6 +1087,31 @@ const POTION: &[P] = &[
     P::plain("Master", 0.7),        // 18
     P::plain("Filter Cutoff", 1.0), // 19
     P::plain("Sustain", 0.8),       // 20
+    P::plain("Decay", 0.3),         // 21
+    P::plain("Filter Resonance", 0.12), // 22
+    P::plain("Filter Mode", 0.0),   // 23: LP / BP / HP
+    P::plain("Unison", 0.0),        // 24: 1..7 voices per oscillator
+    P::plain("Detune", 0.16),       // 25
+    P::plain("Stereo Spread", 0.65), // 26
+    P::plain("Glide", 0.0),         // 27
+    P::plain("Voice Mode", 0.0),    // 28: poly / mono / legato
+    P::plain("LFO 1 Rate", 0.5),    // 29
+    P::plain("LFO 1 Amount", 0.0),  // 30
+    P::plain("LFO 1 Target", 0.0),  // 31
+    P::plain("LFO 1 Shape", 0.0),   // 32
+    P::plain("LFO 2 Rate", 0.35),   // 33
+    P::plain("LFO 2 Amount", 0.0),  // 34
+    P::plain("LFO 2 Target", 0.5),  // 35
+    P::plain("LFO 2 Shape", 0.5),   // 36
+    P::plain("FM Amount", 0.0),     // 37
+    P::plain("Ring Amount", 0.0),   // 38
+    P::plain("Warp Amount", 0.0),   // 39
+    P::plain("Warp Mode", 0.0),     // 40
+    P::plain("Sub Level", 0.0),     // 41
+    P::plain("Noise Level", 0.0),   // 42
+    P::plain("Velocity", 0.7),      // 43
+    P::plain("Filter Env", 0.0),    // 44
+    P::plain("Polyphony", 1.0),     // 45
 ];
 
 pub static MODULES: &[ModuleSpec] = &[

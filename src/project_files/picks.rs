@@ -8,7 +8,7 @@
 //!   category is the folder.
 //! - The file types a module takes ([`super::preset_exts`]): its presets (`.flmpst`, MiniSynth's legacy `.flms`,
 //!   GMSynth's `.flgsynth` and 3x Osc's FL desktop `.fst`); a DW program `.dwp` or an audio file for the DW Sampler; an
-//!   audio loop for the Slicer; an audio shape for 3x Osc; a `.sf2` for the SoundFont Player.
+//!   audio loop for the Slicer; an audio shape for 3x Osc; a single-cycle audio wavetable for Potion; a `.sf2` for the SoundFont Player.
 //! - A pick ([`load_pick`]): a preset loads whole ([`crate::flm::read_preset`], the legacy ones too; a `.fst` through
 //!   [`super::import_fst`], its custom waveform in the module's `CSTM` `PATH`); a program, loop or shape sets the
 //!   module's `CSTM` path chunk to the file's shorthand (DirectWave `PATh`, Slicer and 3x Osc `PATH`), as the module
@@ -41,7 +41,7 @@ pub(crate) const THREE_OSC: u16 = 39;
 pub(crate) const SOUNDFONT_PLAYER: u16 = 52;
 
 /// The file `name` is no preset but a file module `type_id`'s loader names in its `CSTM`: a DW program (`.dwp`, `.sfz`)
-/// or audio file for the DW Sampler, an audio file for the Slicer or 3x Osc, a `.sf2` or `.sfz` for the SoundFont Player.
+/// or audio file for the DW Sampler, an audio file for the Slicer or 3x Osc, a single-cycle audio wavetable for Potion, a `.sf2` or `.sfz` for the SoundFont Player.
 fn named_file(name: &Path, type_id: u16) -> bool {
     let audio = is_audio(name);
     match type_id {

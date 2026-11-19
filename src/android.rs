@@ -492,6 +492,30 @@ pub fn download(url: &str, path: &str) -> Option<String> {
     called.err().or(failed)
 }
 
+/// Downloads an authenticated Freesound API response with the Authorization header kept out of URLs.
+pub fn download_with_header(url: &str, path: &str, authorization: &str) -> Option<String> {
+    let mut failed = None;
+    let called = with_activity_unlocked(|env, activity| {
+        let url = env.auto_local(env.new_string(url)?);
+        let path = env.auto_local(env.new_string(path)?);
+        let authorization = env.auto_local(env.new_string(authorization)?);
+        let why = env.call_method(
+            activity,
+            "downloadWithHeader",
+            "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;",
+            &[
+                jni::objects::JValue::Object(url.as_ref()),
+                jni::objects::JValue::Object(path.as_ref()),
+                jni::objects::JValue::Object(authorization.as_ref()),
+            ],
+        )?;
+        let why = env.auto_local(jni::objects::JString::from(why.l()?));
+        failed = text(env, &why);
+        Ok(())
+    });
+    called.err().or(failed)
+}
+
 /// The bytes free for the app's files (`HoneydewActivity.usableSpace`): what the sounds' copy out of the full APK
 /// checks first (`update`).
 pub fn usable_space() -> Option<u64> {

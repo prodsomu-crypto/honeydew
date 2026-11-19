@@ -47,7 +47,7 @@ use std::sync::mpsc::{Receiver, TryRecvError};
 use eframe::egui;
 
 use super::sample_picker::{self, Decoded};
-use super::{AppCtx, MenuTab, Nav, Overlay, settings_tab};
+use super::{AppCtx, MenuTab, Nav, Overlay, honeydew_sounds, settings_tab};
 use crate::APP_NAME;
 use crate::audio_link::AudioLink;
 use crate::project_files::Replace;
@@ -173,6 +173,7 @@ pub fn quit_question() -> Nav {
 /// Draws the menu on `tab` on the right of the screen; its tab row switches `tab`.
 pub fn show(
     state: &mut State,
+    sounds: &mut honeydew_sounds::State,
     settings: &mut settings_tab::State,
     perf: &mut Performance,
     ui: &mut egui::Ui,
@@ -258,12 +259,15 @@ pub fn show(
     settings.plugins = cfg!(plugin_host);
     settings.orientation = cfg!(target_os = "android");
     state.menu.set_factory(app.files.factory);
+    let app_cx = &app.cx;
+    let audio = &mut *app.audio;
     let action = state.menu.show(
         ui,
-        &app.cx,
-        &mut *app.files.library,
+        app_cx,
+        &mut *app.files,
         info,
         (&mut *settings, app.settings),
+        |ui, files| honeydew_sounds::show_in_panel(sounds, ui, app_cx, files, audio),
     );
     app.midi_rescan |= settings.take_midi_rescan();
     if settings.take_credits() {
@@ -345,7 +349,6 @@ pub fn show(
             nav = Some(message(PURGE_TAG, vec![question], "Yes", "No"));
         }
         MainMenuAction::WhatsNew => nav = Some(Nav::Open(Overlay::WhatsNew)),
-        MainMenuAction::HoneydewSounds => nav = Some(Nav::Open(Overlay::HoneydewSounds)),
         MainMenuAction::ViewVersions => nav = Some(Nav::Open(Overlay::Versions)),
         // On Linux the file manager opens the folder that holds the file, elsewhere it selects it.
         #[cfg(not(target_arch = "wasm32"))]

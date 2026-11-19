@@ -572,7 +572,7 @@ fn envelope_page(
         p1.x + (0.05 + d * 0.27) * plot.width(),
         plot.bottom() - s * plot.height(),
     );
-    let p3 = pos2(plot.right() - r * plot.width() * 0.38, p2.y);
+    let p3 = pos2(p2.x + r * (plot.right() - p2.x) * 0.72, p2.y);
     let p4 = plot.right_bottom();
     let points = [p0, p1, p2, p3, p4];
     ui.painter()
@@ -607,7 +607,7 @@ fn envelope_page(
                     put(module, 20, sustain, changed);
                 }
                 _ => {
-                    let release = ((plot.right() - x) / (plot.width() * 0.38).max(1.0))
+                    let release = ((x - p2.x) / ((plot.right() - p2.x) * 0.72).max(1.0))
                         .clamp(0.0, 1.0);
                     put(module, 17, release, changed);
                 }

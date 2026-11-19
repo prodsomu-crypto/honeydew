@@ -92,15 +92,17 @@ pub enum Tab {
     Settings,
     /// In-app updates (`updates.rs`); not on the web.
     Updates,
+    /// The built-in sound catalogue.
+    Sounds,
     /// SETTINGS' theme creator ([`theme_creator`]): no cell of the tab row, which keeps SETTINGS underlined.
     ThemeCreator,
 }
 
 impl Tab {
     #[cfg(not(any(target_arch = "wasm32", target_os = "ios")))]
-    pub const ALL: [Tab; 4] = [Tab::Songs, Tab::Project, Tab::Settings, Tab::Updates];
+    pub const ALL: [Tab; 5] = [Tab::Songs, Tab::Project, Tab::Settings, Tab::Updates, Tab::Sounds];
     #[cfg(any(target_arch = "wasm32", target_os = "ios"))]
-    pub const ALL: [Tab; 3] = [Tab::Songs, Tab::Project, Tab::Settings];
+    pub const ALL: [Tab; 4] = [Tab::Songs, Tab::Project, Tab::Settings, Tab::Sounds];
 
     pub fn label(self) -> &'static str {
         match self {
@@ -108,6 +110,7 @@ impl Tab {
             Tab::Project => "PROJECT",
             Tab::Settings => "SETTINGS",
             Tab::Updates => "UPDATES",
+            Tab::Sounds => "SOUNDS",
             Tab::ThemeCreator => "THEME CREATOR",
         }
     }
@@ -473,6 +476,9 @@ impl MainMenu {
             }
             if response.clicked() {
                 self.tab = tab;
+                if tab == Tab::Sounds {
+                    action = Some(MainMenuAction::HoneydewSounds);
+                }
             }
         }
 
@@ -514,6 +520,7 @@ impl MainMenu {
                 Tab::Updates => self.updates.show(ui, cx, l.content, settings.1),
                 #[cfg(any(target_arch = "wasm32", target_os = "ios"))]
                 Tab::Updates => None,
+                Tab::Sounds => None,
             })
             .inner;
         action = tab_action.or(action);

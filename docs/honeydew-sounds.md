@@ -18,12 +18,14 @@ Before wiring the browser into the UI, inspect the current sample picker and pro
 
 ## Current implementation status
 
-- Added `src/content/sounds.rs` with provider-neutral asset metadata, the six browser categories, CC0/CC-BY licence parsing, attribution formatting, and validation of provider metadata/HTTPS URLs.
-- Exposed the model as `crate::content::sounds`.
+- Added `src/content/sounds.rs` with provider-neutral asset metadata, the six browser categories, CC0/CC-BY/CC-BY-NC licence parsing, attribution formatting, and validation of provider metadata/HTTPS URLs.
+- Added `src/content/freesound.rs` with Freesound search-response DTOs, a bounded/encoded search URL builder, preview selection, tag-based category hints, and conversion into validated provider-neutral assets.
+- Exposed both modules as `crate::content::sounds` and `crate::content::freesound`.
+- Added adapter tests for URL encoding/pagination bounds, CC-BY metadata conversion, attribution retention, and rejection of ND or preview-less results.
 - Added unit tests for licence eligibility, attribution, insecure URLs, and invalid duration metadata.
 - Licence parsing recognizes canonical Creative Commons CC0, CC-BY 2.0/3.0/4.0, and CC-BY-NC 2.0/3.0/4.0 URLs as well as short identifiers. NC assets are allowed for this personal-use project but always require attribution; ND variants remain excluded.
 - Confirmed the existing `src/ui/views/sample_picker.rs` path already handles worker-thread decoding, waveform preview, and applying imported audio to pads, clips, and supported modules. Honeydew Sounds should hand downloaded files into that path rather than create another preview engine.
-- Not yet implemented: provider API client, search UI, preview transport, download/cache, and playlist import. The model is a foundation, not a usable browser yet.
+- Not yet implemented: HTTP transport/authentication, search UI, preview transport, download/cache, and playlist import. The adapter parses supplied API JSON but does not make network requests; this is still not a usable browser.
 
 ## Phase 1 scope
 
@@ -63,8 +65,8 @@ Before wiring the browser into the UI, inspect the current sample picker and pro
 
 ## Suggested implementation sequence
 
-1. Confirm provider API/authentication and the exact licence filter; write provider metadata types and tests. (Freesound is selected; metadata/licence model is in place. Search requires a user-configured API credential; preview audio can be fetched without OAuth2.)
-2. Add a provider client with pagination, search, category mapping, cancellation, and bounded responses.
+1. Confirm provider API/authentication and the exact licence filter; write provider metadata types and tests. (Done as transport-free adapter groundwork; live search still requires a local API credential.)
+2. Add cross-platform HTTP transport with private local credential handling, pagination, cancellation, and bounded responses. The repository currently has no obvious general-purpose HTTP client dependency, so choose one that works on native desktop, Android, and wasm before wiring it in.
 3. Add a user-owned cache with metadata persistence, atomic downloads, and offline listing.
 4. Build the browser using Honeydew's existing side-panel/search/preview conventions.
 5. Connect Import to the existing audio-file import flow.

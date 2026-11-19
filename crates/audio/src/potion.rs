@@ -191,10 +191,11 @@ impl PotionEngine {
                 noise_seed: (u32::from(note).wrapping_mul(0x9e37_79b9) ^ 0xa341_316c).max(1),
                 ..Voice::default()
             };
+            let unison_count = params.unison.clamp(1, MAX_UNISON);
             for osc in 0..OSCILLATORS {
                 for unison in 0..MAX_UNISON {
                     voice.oscillators[osc][unison]
-                        .set_phase(unison as f64 / MAX_UNISON as f64);
+                        .set_phase((unison % unison_count) as f64 / unison_count as f64);
                 }
             }
         }
@@ -238,8 +239,16 @@ impl PotionEngine {
         let ring_amount = params.ring_amount.clamp(0.0, 1.0);
         let warp_amount = params.warp_amount.clamp(0.0, 1.0);
         let velocity_sensitivity = params.velocity_sensitivity.clamp(0.0, 1.0);
+        let polyphony = params.polyphony.clamp(1, MAX_VOICES);
+        // Shrinking the voice limit cuts voices outside the active range instead of leaving stale tails behind.
+        for voice in self.voices.iter_mut().skip(polyphony) {
+            voice.active = false;
+        }
 
-        for voice in self.voices.iter_mut().filter(|voice| voice.active) {
+        for voice in self.voices[..polyphony]
+            .iter_mut()
+            .filter(|voice| voice.active)
+        {
             for i in 0..len {
                 match voice.amp_stage {
                     0 => {

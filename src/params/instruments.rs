@@ -1125,6 +1125,10 @@ const POTION: &[P] = &[
     P::plain("Mod 4 Source", 0.6),    // 56
     P::plain("Mod 4 Target", 0.6),    // 57
     P::plain("Mod 4 Depth", 0.5),    // 58
+    P::plain("Filter Attack", 0.01),  // 59
+    P::plain("Filter Decay", 0.3),    // 60
+    P::plain("Filter Sustain", 0.7), // 61
+    P::plain("Filter Release", 0.3), // 62
 ];
 
 pub static MODULES: &[ModuleSpec] = &[

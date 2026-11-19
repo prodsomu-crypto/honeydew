@@ -163,8 +163,6 @@ pub enum Overlay {
     MidiImport,
     /// The `Sound credits` screen (SETTINGS' `Sound credits`): the bundled sounds' sources and the app's own credits.
     Credits,
-    /// Honeydew Sounds catalogue and local sample browser.
-    HoneydewSounds,
     /// The What's New dialog (Help → `What's new`, or by itself once per notes version).
     WhatsNew,
     /// `Add MIDI CC track…`'s picker of the MIDI CCs, for a lane on this channel.
@@ -690,8 +688,8 @@ impl Slots {
         if !(overlays.iter()).any(|o| matches!(o, Overlay::SoundFontPicker { .. })) {
             soundfont_picker::stop(&mut self.soundfont_picker, app.audio);
         }
-        if !(overlays.iter()).any(|o| matches!(o, Overlay::HoneydewSounds)) {
-            self.honeydew_sounds.leave(app);
+        if !(overlays.iter()).any(|o| matches!(o, Overlay::MainMenu(MenuTab::Sounds))) {
+            self.honeydew_sounds.leave(&mut *app.files, app.audio);
         }
         let top = overlays.len().saturating_sub(1);
         self.rack.full = overlays.iter().find_map(|o| match o {
@@ -737,6 +735,7 @@ impl Slots {
         match overlay {
             Overlay::MainMenu(tab) => main_menu::show(
                 &mut self.main_menu,
+                &mut self.honeydew_sounds,
                 &mut self.settings_tab,
                 &mut self.performance,
                 ui,
@@ -837,14 +836,6 @@ impl Slots {
             Overlay::MidiImport => midi_import::show(&mut self.midi_import, ui, app),
             // Modal like the Save dialog: hidden while a message shows over it, which draws in the same layer.
             Overlay::Credits => top.then(|| credits::show(&mut self.credits, ui, app))?,
-            Overlay::HoneydewSounds => {
-                if top {
-                    honeydew_sounds::show(&mut self.honeydew_sounds, ui, app)
-                } else {
-                    self.honeydew_sounds.stop_sample(app);
-                    None
-                }
-            }
             // Modal like the Save dialog: hidden while a message shows over it.
             Overlay::WhatsNew => top.then(|| whats_new::show(&mut self.whats_new, ui, app))?,
             Overlay::CcPicker(channel) => cc_picker::show(&mut self.cc_picker, ui, app, *channel),

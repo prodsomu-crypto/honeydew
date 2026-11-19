@@ -1112,7 +1112,7 @@ const POTION: &[P] = &[
     P::plain("Velocity", 0.7),      // 43
     P::plain("Filter Env", 0.0),    // 44
     P::plain("Polyphony", 1.0),     // 45
-    P::toggle("Load WAV Table", 0.0), // 46: opens Potion's custom wavetable picker
+    P::plain("Table Import Action", 0.0), // 46 reserved to keep later parameter indices stable
     P::plain("Mod 1 Source", 0.0),    // 47
     P::plain("Mod 1 Target", 0.0),    // 48
     P::plain("Mod 1 Depth", 0.5),     // 49

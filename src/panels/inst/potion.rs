@@ -64,9 +64,15 @@ fn waveform(
     Vec::new()
 }
 
-/// The import button is an ordinary module parameter so it works with the rack's existing sample-picker action.
-pub fn custom_picked(module: &ModuleInstance, changed: &[i32]) -> bool {
-    module.type_id == 53 && changed.contains(&46)
+/// The import action is a momentary panel button, like the Slicer's LOAD SAMPLE control.
+const LOAD_WAV_TABLE: u32 = 41600;
+
+pub fn asks_for_wavetable(state: &PanelState, edited: &[u32]) -> bool {
+    edited.contains(&LOAD_WAV_TABLE)
+        && state
+            .settings
+            .get(&LOAD_WAV_TABLE)
+            .is_some_and(|&value| value >= 0.5)
 }
 
 pub fn panel() -> Option<Panel> {
@@ -98,7 +104,7 @@ pub fn panel() -> Option<Panel> {
             toggle(31500, "ON").p(15),
         ])
         .show(Show::Tab(2)),
-        hstack([toggle(41600, "LOAD WAV TABLE").p(46)]).show(Show::Tab(3)),
+        hstack([text_toggle(41600, "LOAD WAV TABLE").momentary()]).show(Show::Tab(3)),
         hstack([
             knob(41100, "CUTOFF").p(19),
             knob(41200, "RESONANCE").p(22),

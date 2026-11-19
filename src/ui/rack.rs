@@ -1257,7 +1257,7 @@ struct CardEdits {
     press: Option<Press>,
     /// The MIDI CCs a SoundFont Player's SFZ controls sent, as (channel param, value).
     ccs: Vec<(i32, f32)>,
-    /// A Slicer asked for a loop ([`slicer::asks_for_loop`]), or a Lemon plugin's editor for a file
+    /// A Slicer or Potion asked for an audio/wavetable file, or a Lemon plugin's editor for a file
     /// ([`lemon_card::wants_file`]).
     sample: bool,
     /// A Slicer's `AUTO` was pressed ([`slicer::auto_pressed`]).
@@ -2222,7 +2222,7 @@ impl RackPanel {
         }
         if edits.sample
             || three_osc::custom_picked(module, &edits.changed)
-            || potion::custom_picked(module, &edits.changed)
+
         {
             actions.module_sample = Some(id);
         }
@@ -2594,6 +2594,9 @@ impl RackPanel {
             let asked = slicer::asks_for_loop(ui, id, module, state, content, u, &shown.settings);
             edits.sample = asked;
             edits.auto = slicer::auto_pressed(state, &shown.settings);
+        }
+        if module.type_id == 53 {
+            edits.sample = potion::asks_for_wavetable(state, &shown.settings);
         }
         if soundfont {
             let fonts = &self.soundfonts;

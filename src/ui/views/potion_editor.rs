@@ -1,8 +1,6 @@
 //! Potion's native visual synth editor in a Lemon-style fullscreen overlay.
 
-use eframe::egui::{
-    self, Align2, Area, FontId, Id, LayerId, Order, Rect, Sense, Vec2, pos2, vec2,
-};
+use eframe::egui::{self, Align2, Area, FontId, Id, LayerId, Order, Rect, Sense, Vec2, pos2, vec2};
 use honeydew_audio::device::AudioCommand;
 
 use super::{AppCtx, Nav, Overlay};
@@ -15,16 +13,7 @@ use crate::ui::buttons::filled_circle_button;
 const CLOSE: f32 = 1.5;
 const CLOSE_AT: (f32, f32) = (2.1, 0.2);
 
-const PAGES: [&str; 8] = [
-    "OSC",
-    "TABLE",
-    "FILTER",
-    "ENV",
-    "MOD",
-    "VOICE",
-    "MIX",
-    "MATRIX",
-];
+const PAGES: [&str; 8] = ["OSC", "TABLE", "FILTER", "ENV", "MOD", "VOICE", "MIX", "MATRIX"];
 
 #[derive(Default)]
 pub struct State {
@@ -141,7 +130,13 @@ pub fn show(
                 );
                 changed_values = changed
                     .into_iter()
-                    .filter_map(|index| module.params.get(index).copied().map(|value| (index, value)))
+                    .filter_map(|index| {
+                        module
+                            .params
+                            .get(index)
+                            .copied()
+                            .map(|value| (index, value))
+                    })
                     .collect();
                 imported = potion::asks_for_wavetable(&mut state.panel, &[]);
                 let x = filled_circle_button(ui, id.with("close"), disc.center(), disc.width(), bg);

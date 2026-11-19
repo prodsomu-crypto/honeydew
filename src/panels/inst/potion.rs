@@ -421,9 +421,20 @@ fn table_page(
         vec2(side.width() - 16.0, 30.0),
     );
     ui.painter().rect_filled(import, 5.0, CARD_HI);
-    text(ui, import, "IMPORT WAVETABLE", 9.0, ink, Align2::CENTER_CENTER);
+    text(
+        ui,
+        import,
+        "IMPORT WAVETABLE",
+        9.0,
+        ink,
+        Align2::CENTER_CENTER,
+    );
     if ui
-        .interact(import, id.with(("import-wavetable", selected)), Sense::click())
+        .interact(
+            import,
+            id.with(("import-wavetable", selected)),
+            Sense::click(),
+        )
         .clicked()
     {
         state.settings.insert(LOAD_WAV_TABLE, 1.0);

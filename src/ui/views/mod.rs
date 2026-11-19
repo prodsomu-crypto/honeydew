@@ -849,9 +849,9 @@ impl Slots {
             Overlay::LemonEditor { channel, module } => {
                 top.then(|| lemon_editor::show(&mut self.lemon_editor, ui, app, *channel, *module))?
             }
-            Overlay::PotionEditor { channel, module } => {
-                top.then(|| potion_editor::show(&mut self.potion_editor, ui, app, *channel, *module))?
-            }
+            Overlay::PotionEditor { channel, module } => top.then(|| {
+                potion_editor::show(&mut self.potion_editor, ui, app, *channel, *module)
+            })?,
             Overlay::SectionSettings { section, name } => {
                 section_settings::show(ui, app, *section, name)
             }

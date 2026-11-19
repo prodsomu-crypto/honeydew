@@ -207,7 +207,7 @@ mod config_tests {
     fn credentials_are_header_only_and_reject_control_characters() {
         assert_eq!(authorization_value("  abc123  ").unwrap(), "Token abc123");
         assert_eq!(authorization_value(""), Err(SearchConfigError::MissingCredential));
-        assert_eq!(authorization_value("bad\\nkey"), Err(SearchConfigError::InvalidCredential));
+        assert_eq!(authorization_value("bad\nkey"), Err(SearchConfigError::InvalidCredential));
     }
 
     #[test]

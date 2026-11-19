@@ -109,7 +109,14 @@ pub fn panel() -> Option<Panel> {
             knob(41100, "CUTOFF").p(19),
             knob(41200, "RESONANCE").p(22),
             knob(41300, "FILTER MODE").p(23),
-            knob(41400, "FILTER ENV").p(44),
+            knob(41400, "FILTER ENV AMT").p(44),
+        ])
+        .show(Show::Tab(4)),
+        hstack([
+            knob(41500, "F-ATTACK").p(59),
+            knob(41600, "F-DECAY").p(60),
+            knob(41700, "F-SUSTAIN").p(61),
+            knob(41800, "F-RELEASE").p(62),
         ])
         .show(Show::Tab(4)),
         hstack([

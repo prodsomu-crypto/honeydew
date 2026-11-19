@@ -47,6 +47,7 @@ struct Voice {
     releasing: bool,
     note: u8,
     velocity: f32,
+    pan: f32,
     envelope: f32,
     oscillators: [Oscillator; OSCILLATORS],
 }
@@ -77,6 +78,10 @@ impl PotionEngine {
     }
 
     pub fn note_on(&mut self, note: u8, velocity: f32) {
+        self.note_on_with_pan(note, velocity, 0.5);
+    }
+
+    pub fn note_on_with_pan(&mut self, note: u8, velocity: f32, pan: f32) {
         let slot = self
             .voices
             .iter()
@@ -89,6 +94,7 @@ impl PotionEngine {
             releasing: false,
             note: note.min(127),
             velocity: velocity.clamp(0.0, 1.0),
+            pan: (pan.clamp(0.0, 1.0) - 0.5) * 2.0,
             envelope: 0.0,
             oscillators: [Oscillator::default(); OSCILLATORS],
         };
@@ -142,7 +148,7 @@ impl PotionEngine {
                         sr,
                         params.table_position[osc],
                     ) * params.level[osc].clamp(0.0, 1.0);
-                    let pan = params.pan[osc].clamp(-1.0, 1.0);
+                    let pan = (params.pan[osc] + voice.pan).clamp(-1.0, 1.0);
                     let lg = (1.0 - pan).sqrt() * 0.70710677;
                     let rg = (1.0 + pan).sqrt() * 0.70710677;
                     l += sample * lg;

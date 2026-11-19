@@ -320,7 +320,8 @@ impl PotionEngine {
                 }
                 match voice.filter_stage {
                     0 => {
-                        voice.filter_envelope = (voice.filter_envelope + filter_attack_step).min(1.0);
+                        voice.filter_envelope =
+                            (voice.filter_envelope + filter_attack_step).min(1.0);
                         if voice.filter_envelope >= 1.0 {
                             voice.filter_stage = 1;
                         }
@@ -343,9 +344,9 @@ impl PotionEngine {
                 }
 
                 voice.pitch += (voice.target_pitch - voice.pitch) * glide_step;
-                let base_hz = 440.0 * 2.0f32.powf(
-                    (voice.pitch + voice.slide_pitch + params.pitch_bend - 69.0) / 12.0,
-                );
+                let base_hz = 440.0
+                    * 2.0f32
+                        .powf((voice.pitch + voice.slide_pitch + params.pitch_bend - 69.0) / 12.0);
                 let lfo_a = lfo_value(voice.lfo_phase[0], params.lfo_wave[0]);
                 let lfo_b = lfo_value(voice.lfo_phase[1], params.lfo_wave[1]);
                 for lfo in 0..2 {
@@ -382,7 +383,9 @@ impl PotionEngine {
                         0 => pitch_mod += depth * 12.0,
                         1 => filter_mod += depth * 0.45,
                         2 => pan_mod += depth * 0.6,
-                        3..=5 => oscillator_mod[usize::from(params.mod_destination[route] - 3)] += depth,
+                        3..=5 => {
+                            oscillator_mod[usize::from(params.mod_destination[route] - 3)] += depth
+                        }
                         _ => {}
                     }
                 }
@@ -405,7 +408,9 @@ impl PotionEngine {
                         let cents = (position * 2.0 - 1.0) * detune;
                         let mut hz = base_hz
                             * 2.0f32.powf(
-                                (params.semitones[osc].clamp(-48.0, 48.0) + pitch_mod + cents / 100.0)
+                                (params.semitones[osc].clamp(-48.0, 48.0)
+                                    + pitch_mod
+                                    + cents / 100.0)
                                     / 12.0,
                             );
                         if osc == 0 {
@@ -414,8 +419,12 @@ impl PotionEngine {
                         let phase = voice.oscillators[osc][unison_index].phase();
                         if warp_amount > 0.0 {
                             let warped = match params.warp_mode.min(3) {
-                                1 => phase + (std::f64::consts::TAU * phase).sin()
-                                    * f64::from(warp_amount) * 0.12,
+                                1 => {
+                                    phase
+                                        + (std::f64::consts::TAU * phase).sin()
+                                            * f64::from(warp_amount)
+                                            * 0.12
+                                }
                                 3 => (phase * f64::from(1.0 + warp_amount * 7.0)).fract(),
                                 _ => phase,
                             };
@@ -441,7 +450,7 @@ impl PotionEngine {
                         let right_gain = (1.0 + pan).sqrt() * 0.70710677;
                         let level = (params.level[osc].clamp(0.0, 1.0)
                             * (1.0 + oscillator_mod[osc]).clamp(0.0, 2.0))
-                            .clamp(0.0, 1.0);
+                        .clamp(0.0, 1.0);
                         let gain = level / unison as f32;
                         out_l += sample * gain * left_gain;
                         out_r += sample * gain * right_gain;
@@ -475,7 +484,9 @@ impl PotionEngine {
                     + key_track)
                     .clamp(0.0, 1.0);
                 let cutoff_hz = (35.0 * (18_000.0f32 / 35.0).powf(cutoff_norm)).min(sr * 0.45);
-                let g = (std::f32::consts::PI * cutoff_hz / sr).tan().clamp(0.0001, 10.0);
+                let g = (std::f32::consts::PI * cutoff_hz / sr)
+                    .tan()
+                    .clamp(0.0001, 10.0);
                 let k = 2.0 - params.filter_resonance.clamp(0.0, 1.0) * 1.9;
                 let a1 = (1.0 + g * (g + k)).recip();
                 let a2 = g * a1;
@@ -503,8 +514,7 @@ impl PotionEngine {
                     ),
                 );
                 let velocity = (voice.velocity + voice.slide_velocity).clamp(0.0, 1.0);
-                let velocity_gain =
-                    (1.0 - velocity_sensitivity) + velocity * velocity_sensitivity;
+                let velocity_gain = (1.0 - velocity_sensitivity) + velocity * velocity_sensitivity;
                 let gain = voice.envelope * velocity_gain * master;
                 left[i] += filtered_l * gain;
                 right[i] += filtered_r * gain;
@@ -522,9 +532,19 @@ fn lfo_value(phase: f64, shape: u8) -> f32 {
     match shape.min(2) {
         1 => {
             let p = phase as f32;
-            if p < 0.5 { 4.0 * p - 1.0 } else { 3.0 - 4.0 * p }
+            if p < 0.5 {
+                4.0 * p - 1.0
+            } else {
+                3.0 - 4.0 * p
+            }
         }
-        2 => if phase < 0.5 { 1.0 } else { -1.0 },
+        2 => {
+            if phase < 0.5 {
+                1.0
+            } else {
+                -1.0
+            }
+        }
         _ => (std::f64::consts::TAU * phase).sin() as f32,
     }
 }

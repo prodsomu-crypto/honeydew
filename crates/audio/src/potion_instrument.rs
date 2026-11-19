@@ -132,6 +132,14 @@ impl Instrument for PotionInstrument {
             43 => self.params.velocity_sensitivity = value,
             44 => self.params.filter_env_amount = value,
             45 => self.params.polyphony = 1 + (value * 31.0).round() as usize,
+            47..=58 => {
+                let route = (index - 47) / 3;
+                match (index - 47) % 3 {
+                    0 => self.params.mod_source[route] = (value * 3.0).round() as u8,
+                    1 => self.params.mod_destination[route] = (value * 5.0).round() as u8,
+                    _ => self.params.mod_amount[route] = value * 2.0 - 1.0,
+                }
+            }
             _ => {}
         }
     }

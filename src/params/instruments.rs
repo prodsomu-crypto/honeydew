@@ -1082,8 +1082,8 @@ const POTION: &[P] = &[
     P::toggle("Osc 1 On", 1.0), // 13
     P::toggle("Osc 2 On", 1.0), // 14
     P::toggle("Osc 3 On", 1.0), // 15
-    P::plain("Attack", 0.34), // 16
-    P::plain("Release", 0.59), // 17
+    P::plain("Attack", 0.2562), // 16
+    P::plain("Release", 0.5531), // 17
     P::plain("Master", 0.7), // 18
 ];
 

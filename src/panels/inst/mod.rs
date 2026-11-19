@@ -4,7 +4,7 @@
 mod dw_sampler;
 mod gm_synth;
 mod mini_synth;
-mod potion;
+pub(crate) mod potion;
 pub(crate) mod slicer;
 pub(crate) mod soundfont_player;
 mod super_saw;

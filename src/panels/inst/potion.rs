@@ -71,7 +71,7 @@ pub fn custom_picked(module: &ModuleInstance, changed: &[i32]) -> bool {
 
 pub fn panel() -> Option<Panel> {
     Some(Panel::new(vstack([
-        tabs(0, "OSC 1 · OSC 2 · OSC 3 · TABLE · FILTER · ENVELOPE · MOD · VOICE · MIX")
+        tabs(0, "OSC 1 · OSC 2 · OSC 3 · TABLE · FILTER · ENVELOPE · MOD · VOICE · MIX · MATRIX")
             .h(Size::U(1.25)),
         display(9000).draw(waveform).h(Size::U(2.6)),
         hstack([
@@ -153,12 +153,36 @@ pub fn panel() -> Option<Panel> {
             knob(91400, "MASTER").p(18),
         ])
         .show(Show::Tab(8)),
+        hstack([
+            knob(101100, "SRC 1").p(47),
+            knob(101200, "TARGET 1").p(48),
+            knob(101300, "DEPTH 1").p(49),
+        ])
+        .show(Show::Tab(9)),
+        hstack([
+            knob(102100, "SRC 2").p(50),
+            knob(102200, "TARGET 2").p(51),
+            knob(102300, "DEPTH 2").p(52),
+        ])
+        .show(Show::Tab(9)),
+        hstack([
+            knob(103100, "SRC 3").p(53),
+            knob(103200, "TARGET 3").p(54),
+            knob(103300, "DEPTH 3").p(55),
+        ])
+        .show(Show::Tab(9)),
+        hstack([
+            knob(104100, "SRC 4").p(56),
+            knob(104200, "TARGET 4").p(57),
+            knob(104300, "DEPTH 4").p(58),
+        ])
+        .show(Show::Tab(9)),
     ])))
 }
 
 #[cfg(test)]
 pub const REFERENCE: Reference = Reference {
-    size: [16.96, 13.0],
+    size: [16.96, 14.0],
     settings: &[],
     cases: &[],
 };

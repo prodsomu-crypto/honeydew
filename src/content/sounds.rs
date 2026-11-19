@@ -9,11 +9,11 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "snake_case")]
 pub enum Category { Drums, Loops, Vocals, Instruments, Fx, Textures }
 
-/// Licences accepted for reusable music assets in the first release. Non-commercial and no-derivatives licences
-/// are deliberately excluded.
+/// Licences accepted for a personal-use sound catalogue. Non-commercial use is permitted by the app's
+/// personal-use policy; no-derivatives licences remain excluded because they can conflict with normal DAW editing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-pub enum SoundLicense { Cc0, CcBy }
+pub enum SoundLicense { Cc0, CcBy, CcByNc }
 
 impl SoundLicense {
     pub fn parse(value: &str) -> Option<Self> {
@@ -29,11 +29,18 @@ impl SoundLicense {
             | "http://creativecommons.org/licenses/by/2.0"
             | "http://creativecommons.org/licenses/by/3.0"
             | "http://creativecommons.org/licenses/by/4.0" => Some(Self::CcBy),
+            "cc-by-nc" | "cc-by-nc-2.0" | "cc-by-nc-3.0" | "cc-by-nc-4.0"
+            | "https://creativecommons.org/licenses/by-nc/2.0"
+            | "https://creativecommons.org/licenses/by-nc/3.0"
+            | "https://creativecommons.org/licenses/by-nc/4.0"
+            | "http://creativecommons.org/licenses/by-nc/2.0"
+            | "http://creativecommons.org/licenses/by-nc/3.0"
+            | "http://creativecommons.org/licenses/by-nc/4.0" => Some(Self::CcByNc),
             _ => None,
         }
     }
 
-    pub fn requires_attribution(self) -> bool { matches!(self, Self::CcBy) }
+    pub fn requires_attribution(self) -> bool { matches!(self, Self::CcBy | Self::CcByNc) }
 }
 
 /// Provider-independent metadata for one catalogue result.
@@ -114,8 +121,9 @@ mod tests {
         assert_eq!(asset("CC-BY-4.0").accepted_license(), Some(SoundLicense::CcBy));
         assert_eq!(asset("https://creativecommons.org/publicdomain/zero/1.0/").accepted_license(), Some(SoundLicense::Cc0));
         assert_eq!(asset("https://creativecommons.org/licenses/by/4.0/").accepted_license(), Some(SoundLicense::CcBy));
-        assert!(!asset("https://creativecommons.org/licenses/by-nc/4.0/").is_downloadable());
-        assert!(!asset("CC-BY-NC").is_downloadable());
+        assert_eq!(asset("https://creativecommons.org/licenses/by-nc/4.0/").accepted_license(), Some(SoundLicense::CcByNc));
+        assert_eq!(asset("CC-BY-NC").accepted_license(), Some(SoundLicense::CcByNc));
+        assert!(asset("CC-BY-NC").attribution_text().unwrap().contains("Example creator"));
         assert!(!asset("CC-BY-ND").is_downloadable());
     }
 

@@ -21,6 +21,7 @@ use crate::APP_NAME;
 use crate::icons::{IconId, draw_icon};
 use crate::metrics::{FontSize, Metrics};
 use crate::settings::Settings;
+use crate::project_files::ProjectFiles;
 use crate::theme::DISABLED_ALPHA;
 use crate::ui::buttons::{
     boxed_circle_button, close_x, filled_circle_button, outline_circle_button,
@@ -170,8 +171,6 @@ pub enum MainMenuAction {
     RestoreDemoSongs,
     /// Help → `What's new`: show the What's New dialog.
     WhatsNew,
-    /// Help → Honeydew Sounds: open the integrated sound catalogue.
-    HoneydewSounds,
     /// The theme creator's `Save`: write this theme into the user's themes ([`crate::theme::THEMES_FOLDER`]).
     SaveTheme(crate::theme::Theme),
     /// The theme creator's `Export`: write this theme where the user puts it.
@@ -327,9 +326,10 @@ impl MainMenu {
         &mut self,
         ui: &mut Ui,
         cx: &UiCtx,
-        library: &mut dyn SongLibrary,
+        files: &mut ProjectFiles,
         project: &mut ProjectInfo,
         settings: (&mut SettingsTab, &mut Settings),
+        mut show_sounds: impl FnMut(&mut Ui, &mut ProjectFiles),
     ) -> Option<MainMenuAction> {
         let m = cx.m;
         let c = &cx.theme.colors;
@@ -362,7 +362,7 @@ impl MainMenu {
         (ui.painter()).rect_filled(screen, 0.0, anim::dim(c.background.to_color32(), dim));
         let slide = |x: f32| TSTransform::from_translation(vec2(x, 0.0));
         ui.with_visual_transform(slide(dx), |ui| {
-            self.panel(ui, cx, &l, id, page_dx, library, project, settings)
+            self.panel(ui, cx, &l, id, page_dx, files, project, settings, &mut show_sounds)
         })
         .inner
     }
@@ -376,9 +376,10 @@ impl MainMenu {
         l: &ShellLayout,
         id: Id,
         page_dx: f32,
-        library: &mut dyn SongLibrary,
+        files: &mut ProjectFiles,
         project: &mut ProjectInfo,
         settings: (&mut SettingsTab, &mut Settings),
+        show_sounds: &mut impl FnMut(&mut Ui, &mut ProjectFiles),
     ) -> Option<MainMenuAction> {
         let m = cx.m;
         let c = &cx.theme.colors;
@@ -435,11 +436,12 @@ impl MainMenu {
             if picked.close {
                 self.help_menu = None;
             }
-            action = picked.selected.map(|i| match i {
-                0 => MainMenuAction::WhatsNew,
-                1 => MainMenuAction::HoneydewSounds,
-                i => MainMenuAction::OpenLink(HELP_LINKS[i - 2].1.into()),
-            });
+            match picked.selected {
+                Some(0) => action = Some(MainMenuAction::WhatsNew),
+                Some(1) => self.tab = Tab::Sounds,
+                Some(i) => action = Some(MainMenuAction::OpenLink(HELP_LINKS[i - 2].1.into())),
+                None => {}
+            }
         }
 
         // Tab row: equal cells, each label 10 pt and centred in its cell, a middle ellipsis keeping 5 tail characters
@@ -476,9 +478,6 @@ impl MainMenu {
             }
             if response.clicked() {
                 self.tab = tab;
-                if tab == Tab::Sounds {
-                    action = Some(MainMenuAction::HoneydewSounds);
-                }
             }
         }
 
@@ -490,7 +489,7 @@ impl MainMenu {
                     // Its sort is the stored `SongBrowserOrdering`, and a pick from its menu is stored there.
                     let (_, settings) = settings;
                     self.songs.set_sort(settings.song_ordering());
-                    let action = self.songs.show(ui, cx, l.content, library);
+                    let action = self.songs.show(ui, cx, l.content, &mut *files.library);
                     settings.song_browser_ordering = self.songs.sort.id();
                     action
                 }
@@ -520,13 +519,13 @@ impl MainMenu {
                 Tab::Updates => self.updates.show(ui, cx, l.content, settings.1),
                 #[cfg(any(target_arch = "wasm32", target_os = "ios"))]
                 Tab::Updates => None,
-                Tab::Sounds => ui
-                    .put(
-                        l.content,
-                        eframe::egui::Button::new("Open Honeydew Sounds"),
-                    )
-                    .clicked()
-                    .then_some(MainMenuAction::HoneydewSounds),
+                Tab::Sounds => {
+                    ui.scope_builder(
+                        eframe::egui::UiBuilder::new().max_rect(l.content),
+                        |ui| show_sounds(ui, files),
+                    );
+                    None
+                }
             })
             .inner;
         action = tab_action.or(action);

@@ -1,5 +1,5 @@
 //! Potion's custom-painted wavetable instrument panel (type 53).
-//! The waveform display is drawn from the live oscillator morph controls; all controls remain normal host parameters.
+//! The graph is a responsive shape preview; all controls are normal host parameters.
 
 use eframe::egui::{Color32, Id, Rect, Shape, Stroke, Ui, pos2};
 
@@ -16,7 +16,7 @@ fn value(module: &ModuleInstance, index: usize) -> f32 {
         .clamp(0.0, 1.0)
 }
 
-/// Three layered preview traces, with each trace following its oscillator's wavetable position.
+/// Three layered waveform previews following each oscillator's frame-morph control.
 fn waveform(
     ui: &mut Ui,
     cx: &UiCtx,
@@ -39,12 +39,15 @@ fn waveform(
                 let triangle = (2.0 / std::f32::consts::PI) * phase.sin().asin();
                 let saw = 2.0 * x - 1.0;
                 let square = if x < 0.5 { 1.0 } else { -1.0 };
-                let (a, b, t) = if morph < 1.0 / 3.0 {
-                    (sine, triangle, morph * 3.0)
-                } else if morph < 2.0 / 3.0 {
-                    (triangle, saw, (morph - 1.0 / 3.0) * 3.0)
+                let custom = (phase * 2.0 + (phase * 5.0).sin() * 0.35).sin();
+                let (a, b, t) = if morph < 0.25 {
+                    (sine, triangle, morph * 4.0)
+                } else if morph < 0.5 {
+                    (triangle, saw, (morph - 0.25) * 4.0)
+                } else if morph < 0.75 {
+                    (saw, square, (morph - 0.5) * 4.0)
                 } else {
-                    (saw, square, (morph - 2.0 / 3.0) * 3.0)
+                    (square, custom, (morph - 0.75) * 4.0)
                 };
                 let sample = a + (b - a) * t;
                 pos2(
@@ -61,9 +64,15 @@ fn waveform(
     Vec::new()
 }
 
+/// The import button is an ordinary module parameter so it works with the rack's existing sample-picker action.
+pub fn custom_picked(module: &ModuleInstance, changed: &[i32]) -> bool {
+    module.type_id == 53 && changed.contains(&46)
+}
+
 pub fn panel() -> Option<Panel> {
     Some(Panel::new(vstack([
-        tabs(0, "OSC 1 · OSC 2 · OSC 3 · FILTER · ENVELOPE · MASTER").h(Size::U(1.25)),
+        tabs(0, "OSC 1 · OSC 2 · OSC 3 · TABLE · FILTER · ENVELOPE · MOD · VOICE · MIX")
+            .h(Size::U(1.25)),
         display(9000).draw(waveform).h(Size::U(2.6)),
         hstack([
             knob(11100, "LEVEL").p(1),
@@ -89,20 +98,67 @@ pub fn panel() -> Option<Panel> {
             toggle(31500, "ON").p(15),
         ])
         .show(Show::Tab(2)),
-        hstack([knob(41100, "CUTOFF").p(19)]).show(Show::Tab(3)),
+        hstack([toggle(41600, "LOAD WAV TABLE").p(46)]).show(Show::Tab(3)),
         hstack([
-            knob(51100, "ATTACK").p(16),
-            knob(51200, "SUSTAIN").p(20),
-            knob(51300, "RELEASE").p(17),
+            knob(41100, "CUTOFF").p(19),
+            knob(41200, "RESONANCE").p(22),
+            knob(41300, "FILTER MODE").p(23),
+            knob(41400, "FILTER ENV").p(44),
         ])
         .show(Show::Tab(4)),
-        hstack([knob(61100, "MASTER").p(18)]).show(Show::Tab(5)),
+        hstack([
+            knob(51100, "ATTACK").p(16),
+            knob(51200, "DECAY").p(21),
+            knob(51300, "SUSTAIN").p(20),
+            knob(51400, "RELEASE").p(17),
+        ])
+        .show(Show::Tab(5)),
+        hstack([
+            knob(71100, "LFO 1 RATE").p(29),
+            knob(71200, "LFO 1 AMT").p(30),
+            knob(71300, "LFO 1 TARGET").p(31),
+            knob(71400, "LFO 1 SHAPE").p(32),
+        ])
+        .show(Show::Tab(6)),
+        hstack([
+            knob(72100, "LFO 2 RATE").p(33),
+            knob(72200, "LFO 2 AMT").p(34),
+            knob(72300, "LFO 2 TARGET").p(35),
+            knob(72400, "LFO 2 SHAPE").p(36),
+        ])
+        .show(Show::Tab(6)),
+        hstack([
+            knob(73100, "FM").p(37),
+            knob(73200, "RING").p(38),
+            knob(73300, "WARP").p(39),
+            knob(73400, "WARP MODE").p(40),
+        ])
+        .show(Show::Tab(6)),
+        hstack([
+            knob(81100, "UNISON").p(24),
+            knob(81200, "DETUNE").p(25),
+            knob(81300, "SPREAD").p(26),
+            knob(81400, "GLIDE").p(27),
+        ])
+        .show(Show::Tab(7)),
+        hstack([
+            knob(81500, "VOICE MODE").p(28),
+            knob(81600, "POLYPHONY").p(45),
+        ])
+        .show(Show::Tab(7)),
+        hstack([
+            knob(91100, "SUB").p(41),
+            knob(91200, "NOISE").p(42),
+            knob(91300, "VELOCITY").p(43),
+            knob(91400, "MASTER").p(18),
+        ])
+        .show(Show::Tab(8)),
     ])))
 }
 
 #[cfg(test)]
 pub const REFERENCE: Reference = Reference {
-    size: [16.96, 8.0],
+    size: [16.96, 13.0],
     settings: &[],
     cases: &[],
 };

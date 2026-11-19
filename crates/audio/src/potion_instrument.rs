@@ -140,6 +140,10 @@ impl Instrument for PotionInstrument {
                     _ => self.params.mod_amount[route] = value * 2.0 - 1.0,
                 }
             }
+            59 => self.params.filter_attack_seconds = Self::seconds(value, 8.0),
+            60 => self.params.filter_decay_seconds = Self::seconds(value, 8.0),
+            61 => self.params.filter_sustain = value,
+            62 => self.params.filter_release_seconds = Self::seconds(value, 12.0),
             _ => {}
         }
     }

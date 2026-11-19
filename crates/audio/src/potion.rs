@@ -47,6 +47,11 @@ pub struct PotionParams {
     pub velocity_sensitivity: f32,
     pub filter_env_amount: f32,
     pub polyphony: usize,
+    /// Four simple modulation routes: source, destination and signed depth.
+    /// Sources: LFO 1, LFO 2, amp envelope, velocity. Destinations: pitch, filter, pan, osc 1/2/3 level.
+    pub mod_source: [u8; 4],
+    pub mod_destination: [u8; 4],
+    pub mod_amount: [f32; 4],
 }
 
 impl Default for PotionParams {
@@ -83,6 +88,9 @@ impl Default for PotionParams {
             velocity_sensitivity: 0.7,
             filter_env_amount: 0.0,
             polyphony: MAX_VOICES,
+            mod_source: [0, 1, 2, 3],
+            mod_destination: [0, 1, 2, 3],
+            mod_amount: [0.0; 4],
         }
     }
 }
@@ -288,6 +296,7 @@ impl PotionEngine {
                 let mut pitch_mod = 0.0;
                 let mut filter_mod = 0.0;
                 let mut pan_mod = 0.0;
+                let mut oscillator_mod = [0.0f32; OSCILLATORS];
                 for (value, amount, destination) in [
                     (lfo_a, params.lfo_amount[0], params.lfo_destination[0]),
                     (lfo_b, params.lfo_amount[1], params.lfo_destination[1]),
@@ -297,6 +306,22 @@ impl PotionEngine {
                         0 => pitch_mod += value * depth * 12.0,
                         1 => filter_mod += value * depth * 0.45,
                         _ => pan_mod += value * depth * 0.6,
+                    }
+                }
+                for route in 0..4 {
+                    let source = match params.mod_source[route].min(3) {
+                        0 => lfo_a,
+                        1 => lfo_b,
+                        2 => voice.envelope,
+                        _ => voice.velocity * 2.0 - 1.0,
+                    };
+                    let depth = source * params.mod_amount[route].clamp(-1.0, 1.0);
+                    match params.mod_destination[route].min(5) {
+                        0 => pitch_mod += depth * 12.0,
+                        1 => filter_mod += depth * 0.45,
+                        2 => pan_mod += depth * 0.6,
+                        3..=5 => oscillator_mod[usize::from(params.mod_destination[route] - 3)] += depth,
+                        _ => {}
                     }
                 }
 
@@ -351,7 +376,10 @@ impl PotionEngine {
                             .clamp(-1.0, 1.0);
                         let left_gain = (1.0 - pan).sqrt() * 0.70710677;
                         let right_gain = (1.0 + pan).sqrt() * 0.70710677;
-                        let gain = params.level[osc].clamp(0.0, 1.0) / unison as f32;
+                        let level = (params.level[osc].clamp(0.0, 1.0)
+                            * (1.0 + oscillator_mod[osc]).clamp(0.0, 2.0))
+                            .clamp(0.0, 1.0);
+                        let gain = level / unison as f32;
                         out_l += sample * gain * left_gain;
                         out_r += sample * gain * right_gain;
                         mono += sample * gain;

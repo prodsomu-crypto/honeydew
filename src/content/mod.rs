@@ -28,6 +28,7 @@ mod demo;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod install;
 pub mod kits;
+pub mod sounds;
 mod presets;
 mod samples;
 mod templates;

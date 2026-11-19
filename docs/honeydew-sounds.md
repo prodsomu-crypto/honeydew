@@ -2,86 +2,47 @@
 
 ## Goal
 
-Add an in-app catalogue for discovering, auditioning, and importing legitimately reusable sounds from online libraries. The first release is a sound browser, not a marketplace, social feature, or new instrument.
+Honeydew Sounds is the in-app sound discovery and auditioning feature. It keeps catalogue browsing inside Honeydew, makes licence terms visible before use, and imports audio into the user's existing sample workflow. It is a sound-finding tool, not a social network, marketplace, or content mirror.
 
-The browser should feel native to Honeydew: search and filter in the app, audition before importing, and put a downloaded file directly into the existing playlist/sample workflows. It must work on desktop and Android.
+## Phase 1 implementation
 
-## Existing Honeydew infrastructure to reuse
+- **Entry point:** Help → Honeydew Sounds opens the native overlay in the editor.
+- **Catalogue:** Search Freesound and page through results; filter by Drums, Loops, Vocals, Instruments, FX, or Textures. Result rows show title, creator, category, duration, and licence.
+- **Licence policy:** accept CC0, CC BY and CC BY-NC (including recognised 2.0/3.0/4.0 identifiers and canonical URLs); reject ND, unknown and malformed entries. CC BY and CC BY-NC attribution is retained. CC BY-NC is clearly marked for non-commercial/personal use.
+- **Credential handling:** the user's API key is entered in the Honeydew Sounds panel, saved separately from ordinary Settings and songs, and sent as an Authorization header rather than as a URL query parameter. Desktop stores it in a private configuration file (0600 on Unix); Android stores it inside the app-private data directory. The app never embeds a shared Freesound key.
+- **Network:** search runs on a worker thread. Native builds use Honeydew's existing HTTPS curl downloader; Android uses its existing HTTPS `HttpURLConnection` bridge. Authenticated search is restricted to the Freesound API origin and its response is size-limited.
+- **Preview:** selected preview files are fetched away from the audio callback, decoded using Honeydew's existing sample decoder, and played through the existing preview command. Stop/close clears preview playback.
+- **Import:** the preview copy can be imported into the user's `My Samples` folder. A text sidecar records title, creator, source page, licence name, and licence URL. Imported files remain outside the managed bundled `content` directory and can be used by the existing picker workflow.
+- **Local sounds:** Browse installed sounds opens the existing sample picker, showing user samples, recordings, and available bundled/imported sample content. Picking a file uses the existing decode/waveform preview.
 
-- `src/ui/modules_browser.rs` and the shared side-panel/picker patterns provide an established searchable browser UI.
-- `src/ui/picker_preview.rs` already implements sample audition controls and waveform/progress presentation.
-- `src/sample_cache.rs` and `src/ui/clips.rs` provide waveform/sample handling used by existing audio clips.
-- `src/content/bundle.rs`, `src/content/install.rs`, and `src/content/web.rs` already handle the shipped sound library and downloads.
-- `src/content/install.rs` owns and synchronizes its managed `content` directory. User-downloaded catalogue sounds must **not** be stored there, because sync intentionally removes files not in its manifest.
+## Important boundaries
 
-Before wiring the browser into the UI, inspect the current sample picker and project-file import path and reuse their established import behavior.
+- The current integration imports **Freesound preview copies**, not the original-quality source downloads. Freesound's original download endpoint has different OAuth requirements and is not part of this phase.
+- The online Freesound catalogue is enabled for desktop and Android. It is not enabled in web/iOS builds yet; their local sample browser remains available.
+- Search requires the user to provide their own Freesound API key. Honeydew does not create accounts, proxy credentials, embed a project-wide secret, or bypass provider authentication.
+- Results link to their canonical Freesound pages; Honeydew is not intended to mirror Freesound or replace its service.
+- The preview import persists source/licence details alongside the file. It is the user's responsibility to respect the specific licence conditions in their own projects.
 
-## Current implementation status
+## Not yet in Phase 1
 
-- Added `src/content/sounds.rs` with provider-neutral asset metadata, the six browser categories, CC0/CC-BY/CC-BY-NC licence parsing, attribution formatting, and validation of provider metadata/HTTPS URLs.
-- Added `src/content/freesound.rs` with Freesound search-response DTOs, a bounded/encoded search URL builder, tag-based category hints, and conversion into validated provider-neutral assets. Preview URLs are treated as untrusted and restricted to HTTPS Freesound hosts.
-- Added transport-independent credential validation and Authorization-header construction. Credentials are not put in URLs or persisted by this module. A live HTTP client is deferred until the lockfile can be regenerated and all supported targets can be built.
-- Exposed both modules as `crate::content::sounds` and `crate::content::freesound`.
-- Added adapter tests for URL encoding/pagination bounds, CC-BY metadata conversion, attribution retention, rejection of ND or preview-less results, and rejection of insecure or external preview hosts.
-- Added unit tests for licence eligibility, attribution, insecure URLs, and invalid duration metadata.
-- Licence parsing recognizes canonical Creative Commons CC0, CC-BY 2.0/3.0/4.0, and CC-BY-NC 2.0/3.0/4.0 URLs as well as short identifiers. NC assets are allowed for this personal-use project but always require attribution; ND variants remain excluded.
-- Confirmed the existing `src/ui/views/sample_picker.rs` path already handles worker-thread decoding, waveform preview, and applying imported audio to pads, clips, and supported modules. Honeydew Sounds should hand downloaded files into that path rather than create another preview engine.
-- Not yet implemented: HTTP transport, local credential storage/settings UI, search UI, preview transport, download/cache, and playlist import. This is still a provider adapter foundation, not a usable browser.
+- Persistent offline catalogue/search cache and automatic cache reuse.
+- Tempo/key analysis or automatic tempo/key matching.
+- A searchable preset library for Honeydew instruments.
+- Original-quality Freesound downloads and OAuth flow.
+- Online provider support in web/iOS builds.
+- Additional online catalogue providers.
 
-## UI alpha preview
+## Architecture
 
-A standalone browser prototype is being used to review the Honeydew Sounds layout before it is wired into the app. It demonstrates the catalogue rows, search, category filters, selection details, licence messaging, and preview/import control states using clearly labelled demo entries. It makes no network requests and does not play or import audio; those remain app integration work.
+- `src/content/sounds.rs`: provider-neutral categories, licences, attribution and metadata validation.
+- `src/content/freesound.rs`: Freesound search URL builder, API response types, preview-host validation and conversion to neutral assets.
+- `src/update.rs`: authenticated search transport reusing the existing native downloader.
+- `src/android.rs` and `HoneydewActivity.java`: Android bridge for authenticated search requests.
+- `src/settings.rs`: private local API-key storage, separate from serialised user preferences.
+- `src/project_files/samples.rs`: imports validated preview files into `My Samples` with a provenance/licence sidecar.
+- `src/ui/views/honeydew_sounds.rs`: catalogue UI, asynchronous search/download/decode state, preview and local-library view.
+- `src/ui/views/mod.rs` and `src/ui/main_menu/mod.rs`: overlay registration and Help menu entry.
 
-## Phase 1 scope
+## Validation and testing
 
-1. A dedicated **Honeydew Sounds** entry in the existing browser/navigation system.
-2. Search by sound name and filter by category: Drums, Loops, Vocals, Instruments, FX, and Textures.
-3. Result rows show the title, source/creator, duration, licence, and available tags.
-4. Preview a result in-app without adding it to the project; stop preview cleanly when selection changes or the browser closes.
-5. Download/import a result into a user-owned sound cache, then offer the existing playlist/sample import path.
-6. Show attribution and licence details at the point of download and retain the metadata alongside the cached file.
-7. Handle offline state, failed downloads, cancellation, and cache reuse without blocking the audio thread or UI.
-
-## Provider and licensing rules
-
-- Start with one provider behind a small provider interface; do not hardwire provider-specific JSON into UI code.
-- Freesound is the selected first provider. Its API is documented as free for non-commercial use, requires an API credential for search, and exposes preview URLs without OAuth2; original-quality downloads require OAuth2. The app must use a locally configured user API key, never a key committed to source or embedded as a shared secret.
-- Because this is a personal-use project, include CC0, CC-BY, and CC-BY-NC assets. Preserve attribution for both BY variants and clearly label NC assets as non-commercial. Continue rejecting ND and unknown licences; a free download is not automatically unrestricted.
-- Preserve the provider's canonical asset URL, creator attribution, licence identifier/URL, and any required attribution text.
-- Never scrape provider pages or bypass API limits/authentication. Keep API credentials out of source control and avoid shipping a private secret in the app binary.
-- If a provider's API key cannot safely be used by a standalone client, make the provider configurable or choose a source with a suitable public API rather than embedding a secret.
-
-## Storage and audio behavior
-
-- Store downloads in a dedicated user cache/library location, separate from the managed bundled `content` directory and from project files.
-- Use safe filenames derived from stable asset IDs, validate file size/type, write to a temporary file, and atomically move into place after a successful download.
-- Cache provider metadata with the file so attribution survives offline use and future provider API changes.
-- Reuse Honeydew's supported audio decoding and existing sample import path. Do not introduce a second playback engine.
-- Network and file work must run off the real-time audio thread. Preview should use the existing audio/sample preview architecture where possible.
-- Do not promise BPM/key matching in Phase 1 unless the existing preview path can do it accurately without destructive changes. It can be a later enhancement.
-
-## Explicit non-goals for Phase 1
-
-- Community uploads, accounts, comments, likes, or a marketplace.
-- Paid subscriptions or a proprietary sound-pack storefront.
-- A new sampler or synthesizer.
-- Automatic stem separation, AI sound generation, or cloud project storage.
-- Downloading arbitrary files from arbitrary URLs without provider metadata and licence checks.
-
-## Suggested implementation sequence
-
-1. Confirm provider API/authentication and the exact licence filter; write provider metadata types and tests. (Done as transport-free adapter groundwork; live search still requires a local API credential.)
-2. Add a cross-platform HTTP dependency and regenerate Cargo.lock, then implement cancellable search transport with private local credential handling. The API key must be sent in an Authorization header and never put in the URL.
-3. Add a user-owned cache with metadata persistence, atomic downloads, and offline listing.
-4. Build the browser using Honeydew's existing side-panel/search/preview conventions.
-5. Connect Import to the existing audio-file import flow.
-6. Add tests for licence filtering, metadata persistence, interrupted downloads, cache hits, and provider failures; then build/test desktop and Android targets.
-
-## Acceptance criteria
-
-- A user can search and filter catalogue results without leaving Honeydew.
-- A result can be previewed and stopped without importing it.
-- A permitted result can be downloaded once, imported into a project, and reused offline.
-- Every cached item retains its source and licence/attribution information.
-- No unlicensed/restricted result is presented as unrestricted.
-- The feature does not modify the managed bundled sound library or block audio playback while network operations run.
+The Freesound adapter and metadata model include unit tests for search URL encoding, pagination bounds, accepted licences, attribution, invalid metadata, insecure URLs, unknown/ND licences, missing previews, and disallowed preview hosts. The repository's Android CI workflow runs formatting checks and builds the Android libraries/APK. The status of that workflow must be checked on the feature branch before treating this integration as build-verified.

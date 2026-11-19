@@ -55,6 +55,7 @@ pub enum SynthKind {
     Slicer,
     ThreeXOsc,
     SoundFontPlayer,
+    Potion,
 }
 
 impl SynthKind {
@@ -67,6 +68,7 @@ impl SynthKind {
         Self::Slicer,
         Self::ThreeXOsc,
         Self::SoundFontPlayer,
+        Self::Potion,
     ];
 
     pub fn label(self) -> &'static str {
@@ -79,6 +81,7 @@ impl SynthKind {
             Self::Slicer => "Slicer",
             Self::ThreeXOsc => "3x Osc",
             Self::SoundFontPlayer => "SoundFont Player",
+            Self::Potion => "Potion",
         }
     }
 
@@ -93,6 +96,7 @@ impl SynthKind {
             Self::Slicer => 33,
             Self::ThreeXOsc => 39,
             Self::SoundFontPlayer => 52,
+            Self::Potion => 53,
         }
     }
 }

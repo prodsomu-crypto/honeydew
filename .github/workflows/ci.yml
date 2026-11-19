@@ -1,4 +1,4 @@
-name: CI
+name: Android CI
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -23,51 +23,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --check
 
-  linux-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      # Keep lint rules aligned with the validated development toolchain.
-      - uses: dtolnay/rust-toolchain@1.91.0
-        with:
-          components: clippy
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            .
-            tools/content-build
-      # libclang: bindgen in signalsmith-stretch's build script (Lemon Sampler, C++).
-      - name: System libraries
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libxkbcommon-dev libwayland-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libclang-dev
-      # Clippy builds all targets, so the following test step reuses its artifacts.
-      - run: cargo clippy --workspace --all-targets -- -D warnings
-      - run: cargo test --workspace
-
-  wasm-check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.91.0
-        with:
-          targets: wasm32-unknown-unknown
-      - uses: Swatinem/rust-cache@v2
-      # The native build scripts still need libclang even when checking the wasm target.
-      - name: libclang
-        run: sudo apt-get update && sudo apt-get install -y libclang-dev
-      - run: cargo check --workspace --target wasm32-unknown-unknown
-
-  content-tool:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.91.0
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: tools/content-build
-      - name: System libraries
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libxkbcommon-dev libwayland-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libclang-dev
-      - run: cargo test --manifest-path tools/content-build/Cargo.toml
-
   android-check:
     runs-on: ubuntu-latest
     steps:
@@ -91,23 +46,5 @@ jobs:
           echo "CC_aarch64_linux_android=$BIN/aarch64-linux-android26-clang" >> "$GITHUB_ENV"
           echo "CXX_aarch64_linux_android=$BIN/aarch64-linux-android26-clang++" >> "$GITHUB_ENV"
           echo "AR_aarch64_linux_android=$BIN/llvm-ar" >> "$GITHUB_ENV"
-      - run: cargo check --locked --lib --target aarch64-linux-android
-
-  native-multicore:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.91.0
-      - uses: Swatinem/rust-cache@v2
-      - name: libclang
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $llvm = 'C:\Program Files\LLVM\bin'
-          if (-not (Test-Path "$llvm\libclang.dll")) { choco install llvm -y --no-progress }
-          "LIBCLANG_PATH=$llvm" >> $env:GITHUB_ENV
-      - run: cargo test --locked --lib parallel_racks_match_sequential_through_sends_and_live_toggle
+      - name: Check Android ARM64 library
+        run: cargo check --locked --lib --target aarch64-linux-android

@@ -59,7 +59,7 @@ pub enum SynthKind {
 }
 
 impl SynthKind {
-    pub const ALL: [Self; 8] = [
+    pub const ALL: [Self; 9] = [
         Self::MiniSynth,
         Self::DwSampler,
         Self::GmSynth,

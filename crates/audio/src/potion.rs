@@ -619,23 +619,25 @@ fn sync_cycle_beats(division: u8) -> f64 {
 }
 
 fn lfo_value(phase: f64, shape: u8) -> f32 {
-    match shape.min(2) {
-        1 => {
-            let p = phase as f32;
-            if p < 0.5 {
-                4.0 * p - 1.0
+    let phase = phase.rem_euclid(1.0) as f32;
+    match shape.min(4) {
+        1 => phase * 2.0 - 1.0,
+        2 => {
+            if phase < 0.5 {
+                4.0 * phase - 1.0
             } else {
-                3.0 - 4.0 * p
+                3.0 - 4.0 * phase
             }
         }
-        2 => {
+        3 => 1.0 - phase * 2.0,
+        4 => {
             if phase < 0.5 {
                 1.0
             } else {
                 -1.0
             }
         }
-        _ => (std::f64::consts::TAU * phase).sin() as f32,
+        _ => (std::f64::consts::TAU * f64::from(phase)).sin() as f32,
     }
 }
 
@@ -672,6 +674,15 @@ mod tests {
             .map(|i| (std::f32::consts::TAU * i as f32 / 256.0).sin())
             .collect();
         Arc::new(Wavetable::new(vec![frame]).unwrap())
+    }
+
+    #[test]
+    fn lfo_supports_rising_and_falling_saw_shapes() {
+        assert!((lfo_value(0.25, 1) + 0.5).abs() < 1.0e-6);
+        assert!((lfo_value(0.25, 3) - 0.5).abs() < 1.0e-6);
+        assert!((lfo_value(0.25, 2) - 0.0).abs() < 1.0e-6);
+        assert_eq!(lfo_value(0.25, 4), 1.0);
+        assert_eq!(lfo_value(0.75, 4), -1.0);
     }
 
     #[test]

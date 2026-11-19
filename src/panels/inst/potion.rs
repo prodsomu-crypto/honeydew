@@ -804,8 +804,10 @@ fn lfo_points(rect: Rect, shape: usize) -> Vec<eframe::egui::Pos2> {
             let x = i as f32 / 96.0;
             let phase = x.fract();
             let y = match shape {
-                1 => 1.0 - 4.0 * (phase - 0.5).abs(),
-                2 => {
+                1 => phase * 2.0 - 1.0,
+                2 => 1.0 - 4.0 * (phase - 0.5).abs(),
+                3 => 1.0 - phase * 2.0,
+                4 => {
                     if phase < 0.5 {
                         1.0
                     } else {
@@ -844,7 +846,7 @@ fn modulation_page(
         );
         ui.painter().rect_filled(graph, 4.0, TRACK);
         graph_grid(ui, graph);
-        let shape = (value(module, 32 + lfo) * 2.99).floor() as usize;
+        let shape = (value(module, 32 + lfo) * 4.0).round() as usize;
         ui.painter().add(Shape::line(
             lfo_points(graph, shape.min(2)),
             Stroke::new(1.8, ink),
@@ -899,7 +901,7 @@ fn modulation_page(
             ),
             module,
             32 + lfo * 4,
-            &["SINE", "TRIANGLE", "SQUARE"],
+            &["SINE", "SAW UP", "TRIANGLE", "SAW DOWN", "SQUARE"],
             ink,
             changed,
         );

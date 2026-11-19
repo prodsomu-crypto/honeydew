@@ -130,11 +130,13 @@ impl Instrument for PotionInstrument {
             29 => self.params.lfo_rate[0] = Self::rate(value),
             30 => self.params.lfo_amount[0] = value,
             31 => self.params.lfo_destination[0] = (value * 2.0).round() as u8,
-            32 => self.params.lfo_wave[0] = (value * 2.0).round() as u8,
+            // Legacy menu values 0, .5 and 1 retain sine, triangle and square.
+            // The inserted quarter-step values add rising and falling saw waves.
+            32 => self.params.lfo_wave[0] = (value * 4.0).round() as u8,
             33 => self.params.lfo_rate[1] = Self::rate(value),
             34 => self.params.lfo_amount[1] = value,
             35 => self.params.lfo_destination[1] = (value * 2.0).round() as u8,
-            36 => self.params.lfo_wave[1] = (value * 2.0).round() as u8,
+            36 => self.params.lfo_wave[1] = (value * 4.0).round() as u8,
             37 => self.params.fm_amount = value,
             38 => self.params.ring_amount = value,
             39 => self.params.warp_amount = value,

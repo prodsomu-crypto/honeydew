@@ -120,7 +120,11 @@ fn is_freesound_preview_url(url: &str) -> bool {
         .split(['/', '?', '#'])
         .next()
         .unwrap_or_default();
-    if authority.is_empty() || authority.contains('@') || authority.contains(':') {
+    if authority.is_empty()
+        || !authority
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'-'))
+    {
         return false;
     }
     let host = authority.to_ascii_lowercase();
@@ -193,6 +197,7 @@ mod tests {
         assert!(!is_freesound_preview_url("https://example.org/1.ogg"));
         assert!(!is_freesound_preview_url("https://user@freesound.org/1.ogg"));
         assert!(!is_freesound_preview_url("https://freesound.org:443/1.ogg"));
+        assert!(!is_freesound_preview_url("https://freesound.org\\\\@example.org/1.ogg"));
     }
 }
 

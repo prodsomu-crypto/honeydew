@@ -1,4 +1,4 @@
-# Android Wavetable Synthesizer
+# Potion — Android Wavetable Synthesizer
 
 ## Goal
 

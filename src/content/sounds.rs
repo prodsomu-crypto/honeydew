@@ -17,9 +17,18 @@ pub enum SoundLicense { Cc0, CcBy }
 
 impl SoundLicense {
     pub fn parse(value: &str) -> Option<Self> {
-        match value.trim().trim_end_matches('/') {
-            "CC0" | "CC0-1.0" | "cc0" | "cc0-1.0" => Some(Self::Cc0),
-            "CC-BY" | "CC-BY-4.0" | "CC-BY-3.0" | "CC-BY-2.0" | "cc-by" => Some(Self::CcBy),
+        let value = value.trim().trim_end_matches('/').to_ascii_lowercase();
+        match value.as_str() {
+            "cc0" | "cc0-1.0"
+            | "https://creativecommons.org/publicdomain/zero/1.0"
+            | "http://creativecommons.org/publicdomain/zero/1.0" => Some(Self::Cc0),
+            "cc-by" | "cc-by-2.0" | "cc-by-3.0" | "cc-by-4.0"
+            | "https://creativecommons.org/licenses/by/2.0"
+            | "https://creativecommons.org/licenses/by/3.0"
+            | "https://creativecommons.org/licenses/by/4.0"
+            | "http://creativecommons.org/licenses/by/2.0"
+            | "http://creativecommons.org/licenses/by/3.0"
+            | "http://creativecommons.org/licenses/by/4.0" => Some(Self::CcBy),
             _ => None,
         }
     }
@@ -103,6 +112,9 @@ mod tests {
     fn accepts_only_reusable_licences() {
         assert_eq!(asset("CC0").accepted_license(), Some(SoundLicense::Cc0));
         assert_eq!(asset("CC-BY-4.0").accepted_license(), Some(SoundLicense::CcBy));
+        assert_eq!(asset("https://creativecommons.org/publicdomain/zero/1.0/").accepted_license(), Some(SoundLicense::Cc0));
+        assert_eq!(asset("https://creativecommons.org/licenses/by/4.0/").accepted_license(), Some(SoundLicense::CcBy));
+        assert!(!asset("https://creativecommons.org/licenses/by-nc/4.0/").is_downloadable());
         assert!(!asset("CC-BY-NC").is_downloadable());
         assert!(!asset("CC-BY-ND").is_downloadable());
     }

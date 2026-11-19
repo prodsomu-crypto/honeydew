@@ -1,31 +1,33 @@
 # Potion UI Architecture
 
-Honeydew's wavetable synth will use a custom embedded editor, not the generic parameter-knob page.
+Potion is a native Honeydew rack instrument with its own custom panel tree. It does not use the desktop CLAP editor path or the Lemon plugin embedding path.
 
-## Host integration
+## Current editor
 
-Use the same built-in CLAP integration path already used by Lemon Trio and the other bundled Lemon Studio instruments:
-- Compile the synth into Honeydew as a linked built-in CLAP instrument.
-- Use the embedded editor path from os-plugkit so the editor is painted inside Honeydew's own rack/editor surface on Android.
-- Do not depend on desktop plugin scanning or third-party CLAP hosting.
-- Keep a normal CLAP parameter model underneath the custom editor. This preserves host automation, parameter gestures, project state, preset recall and accessibility to generic host controls.
+The panel is registered as instrument type 53 and rendered by Honeydew's normal rack panel system. It keeps stable module parameter indices underneath the custom interface, preserving the host's existing project state, undo, automation and module preset behavior.
 
-The custom editor is the primary interface. CLAP parameters are the stable control/state contract, not a replacement for the visual interface.
+The current pages are:
+- **OSC 1 / 2 / 3:** level, pan, pitch, wavetable morph and enable for each oscillator.
+- **TABLE:** a momentary LOAD WAV TABLE action that opens Honeydew's existing module sample picker.
+- **FILTER:** cutoff, resonance, low/band/high-pass selection and filter-envelope depth.
+- **ENVELOPE:** amp attack, decay, sustain and release.
+- **MOD:** two LFOs, FM, ring modulation and warp controls.
+- **VOICE:** unison count, detune, stereo spread, glide, voice mode and polyphony.
+- **MIX:** sub, noise, velocity sensitivity and master level.
+- **MATRIX:** four modulation routes, each with source, destination and signed depth.
 
-## Main screen
+The three oscillator traces and table preview are drawn in the panel from the oscillator morph values. They are design previews, not live DSP waveform captures. A real oscilloscope, spectral view, animated modulation ranges and an interactive frame editor remain future work.
 
-- Header: preset name, save, undo/redo, browser and master output.
-- Oscillator area: three large waveform/wavetable displays with animated play position, frame-position control, enable, pitch, unison, warp and level.
-- Modulation area: draggable or tap-to-assign source badges, animated modulation ranges and a matrix view.
-- Filter area: interactive response curve, routing, cutoff, resonance, drive and filter selection.
-- Bottom navigation: Voice, Mod, FX, Matrix and Global pages.
-- On phones, use scrollable stacked panels and full-screen editors for wavetable editing. On tablets, show oscillator, filter and modulation areas together.
-- Render visualizations from cached UI snapshots. Never run FFTs, wavetable construction, file parsing or allocations in the audio callback.
+## WAV table import path
+
+The TABLE page uses a momentary, unbound text button, following the same action pattern as Honeydew's Slicer LOAD SAMPLE control. The rack recognizes that action and opens the module sample picker. The picker decodes the selected audio file off the audio thread, then the selected file is stored as the module's CSTM PATH. The sample cache provides the prepared periodic cycle when the engine is rebuilt.
+
+The current importer converts one audio file into one cycle. It does not yet support multi-frame table banks, drawing, harmonic editing or WAV export.
 
 ## UI-to-audio contract
 
-- Every audible control maps to a stable normalized CLAP parameter ID.
-- The editor sends parameter begin/value/end gestures through the host context.
-- DSP reads atomically published parameter state and performs smoothing at audio rate where needed.
-- Meter/waveform/spectrum data is published through bounded, non-blocking snapshots; the UI never locks the audio thread.
-- Large assets (wavetable frames, samples, presets) are parsed and prepared off-thread, then swapped at safe block boundaries.
+- All audible controls are normal Honeydew instrument parameters, not CLAP parameter IDs.
+- The rack sends changed normalized values through the native Instrument interface. Note-on, note-off, reset, controller and slide events use the same interface.
+- The WAV picker and sample cache handle file I/O and decode away from the audio callback. The Wavetable object and its mip levels are constructed as the instrument engine is built.
+- The render path uses bounded voice/oscillator arrays and performs no allocation, blocking lock or file I/O.
+- Device-specific CPU and audio-glitch behavior must still be checked on physical Android hardware.

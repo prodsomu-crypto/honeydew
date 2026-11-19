@@ -110,7 +110,7 @@ impl SoundAsset {
 
 fn https_url(value: &str) -> bool {
     let Some(rest) = value.strip_prefix("https://") else { return false; };
-    !rest.is_empty() && !rest.starts_with('/') && !rest.chars().any(|c| matches!(c, '\\r' | '\\n' | '\\0' | ' '))
+    !rest.is_empty() && !rest.starts_with('/') && !rest.chars().any(|c| matches!(c, '\r' | '\n' | '\0' | ' '))
 }
 
 #[cfg(test)]

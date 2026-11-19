@@ -1042,6 +1042,7 @@ impl HoneydewApp {
             | Overlay::MidiImport
             | Overlay::MidiPicker(_)
             | Overlay::Credits
+            | Overlay::HoneydewSounds
             | Overlay::WhatsNew
             | Overlay::Versions
             | Overlay::SectionSettings { .. } => true,

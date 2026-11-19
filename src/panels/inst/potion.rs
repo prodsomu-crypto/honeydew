@@ -113,10 +113,10 @@ pub fn panel() -> Option<Panel> {
         ])
         .show(Show::Tab(4)),
         hstack([
-            knob(41500, "F-ATTACK").p(59),
-            knob(41600, "F-DECAY").p(60),
-            knob(41700, "F-SUSTAIN").p(61),
-            knob(41800, "F-RELEASE").p(62),
+            knob(42100, "F-ATTACK").p(59),
+            knob(42200, "F-DECAY").p(60),
+            knob(42300, "F-SUSTAIN").p(61),
+            knob(42400, "F-RELEASE").p(62),
         ])
         .show(Show::Tab(4)),
         hstack([

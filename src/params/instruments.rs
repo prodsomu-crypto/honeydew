@@ -1183,6 +1183,9 @@ pub static MODULES: &[ModuleSpec] = &[
         "Potion",
         "Potion",
         POTION,
-        &["OSC 1", "OSC 2", "OSC 3", "FILTER", "ENVELOPE", "MASTER"],
+        &[
+            "OSC 1", "OSC 2", "OSC 3", "TABLE", "FILTER", "ENVELOPE", "MOD", "VOICE", "MIX",
+            "MATRIX",
+        ],
     ),
 ];

@@ -725,11 +725,13 @@ fn envelope_page(
     }
 
     let pitch_top = controls_top + 56.0;
-    let pitch = Rect::from_min_size(
-        pos2(area.left(), pitch_top),
-        vec2(area.width(), 84.0),
+    let pitch = Rect::from_min_size(pos2(area.left(), pitch_top), vec2(area.width(), 84.0));
+    card(
+        ui,
+        pitch,
+        "PITCH ENVELOPE · BIPOLAR SEMITONE MODULATION",
+        ink,
     );
-    card(ui, pitch, "PITCH ENVELOPE · BIPOLAR SEMITONE MODULATION", ink);
     let pitch_gap = 6.0;
     let pitch_width = (area.width() - pitch_gap * 4.0) / 5.0;
     for (i, (param, label)) in [

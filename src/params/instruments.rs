@@ -1128,14 +1128,14 @@ const POTION: &[P] = &[
     P::plain("Filter Attack", 0.2562),    // 59: 0.01 s
     P::plain("Filter Decay", 0.614),      // 60: 0.25 s
     P::plain("Filter Sustain", 0.7),      // 61
-    P::plain("Filter Release", 0.5531), // 62: 0.18 s
-    P::toggle("LFO 1 Tempo Sync", 0.0), // 63
+    P::plain("Filter Release", 0.5531),   // 62: 0.18 s
+    P::toggle("LFO 1 Tempo Sync", 0.0),   // 63
     P::menu(
         "LFO 1 Sync Division",
         0.5,
         &["1/8", "1/4", "1/2", "1/1", "2/1", "4/1", "8/1"],
     ), // 64
-    P::toggle("LFO 2 Tempo Sync", 0.0), // 65
+    P::toggle("LFO 2 Tempo Sync", 0.0),   // 65
     P::menu(
         "LFO 2 Sync Division",
         0.5,
@@ -1143,13 +1143,13 @@ const POTION: &[P] = &[
     ), // 66
     P::plain("Pitch Bend Range", 1.0 / 23.0), // 67: 2 semitones
     P::cont("Filter Key Track", 0.56, AMOUNT_1), // 68: 0.12 default depth
-    P::plain("Filter Velocity", 0.0), // 69
-    P::toggle("Filter Notch", 0.0), // 70
+    P::plain("Filter Velocity", 0.0),     // 69
+    P::toggle("Filter Notch", 0.0),       // 70
     P::plain("Pitch Env Attack", 0.2562), // 71: 0.01 s
-    P::plain("Pitch Env Decay", 0.614), // 72: 0.25 s
-    P::plain("Pitch Env Sustain", 0.0), // 73
+    P::plain("Pitch Env Decay", 0.614),   // 72: 0.25 s
+    P::plain("Pitch Env Sustain", 0.0),   // 73
     P::plain("Pitch Env Release", 0.5531), // 74: 0.18 s
-    P::plain("Pitch Env Amount", 0.5), // 75: zero semitones
+    P::plain("Pitch Env Amount", 0.5),    // 75: zero semitones
 ];
 
 pub static MODULES: &[ModuleSpec] = &[

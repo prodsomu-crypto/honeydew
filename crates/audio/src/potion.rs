@@ -414,8 +414,7 @@ impl PotionEngine {
                     }
                     2 => voice.pitch_envelope = pitch_sustain,
                     3 => {
-                        voice.pitch_envelope =
-                            (voice.pitch_envelope - pitch_release_step).max(0.0);
+                        voice.pitch_envelope = (voice.pitch_envelope - pitch_release_step).max(0.0);
                     }
                     _ => voice.pitch_stage = 3,
                 }
@@ -443,7 +442,8 @@ impl PotionEngine {
                         .fract();
                     }
                 }
-                let mut pitch_mod = voice.pitch_envelope * params.pitch_env_amount.clamp(-24.0, 24.0);
+                let mut pitch_mod =
+                    voice.pitch_envelope * params.pitch_env_amount.clamp(-24.0, 24.0);
                 let mut filter_mod = 0.0;
                 let mut pan_mod = 0.0;
                 let mut oscillator_mod = [0.0f32; OSCILLATORS];
@@ -572,7 +572,11 @@ impl PotionEngine {
                 let a1 = (1.0 + g * (g + k)).recip();
                 let a2 = g * a1;
                 let a3 = g * a2;
-                let filter_mode = if params.filter_notch { 3 } else { params.filter_mode };
+                let filter_mode = if params.filter_notch {
+                    3
+                } else {
+                    params.filter_mode
+                };
                 let (filtered_l, filtered_r) = (
                     svf(
                         dry_l,
@@ -688,14 +692,7 @@ mod tests {
         engine.note_on(69, 1.0);
         let mut left = vec![0.0; 256];
         let mut right = left.clone();
-        engine.render_with_transport(
-            &mut left,
-            &mut right,
-            &params,
-            120.0,
-            3.0,
-            true,
-        );
+        engine.render_with_transport(&mut left, &mut right, &params, 120.0, 3.0, true);
         assert_eq!(engine.voices[0].lfo_phase[0], 0.0);
         assert!(engine.voices[0].lfo_phase[1] > 0.0);
     }

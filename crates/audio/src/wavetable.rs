@@ -64,7 +64,10 @@ impl Wavetable {
     /// Builds a harmonic-scan bank from one periodic cycle. Frames progress from a fundamental-only sine
     /// towards the complete source spectrum, so imported single-cycle WAVs can be scanned like a wavetable.
     /// Preparation is intended for the app/worker thread, never the render callback.
-    pub fn spectral_frames(cycle: &[f32], frame_count: usize) -> Result<Vec<Vec<f32>>, WavetableError> {
+    pub fn spectral_frames(
+        cycle: &[f32],
+        frame_count: usize,
+    ) -> Result<Vec<Vec<f32>>, WavetableError> {
         if frame_count < 2 {
             return Err(WavetableError::InvalidLength);
         }
@@ -85,7 +88,9 @@ impl Wavetable {
         // A wavetable is periodic and zero-centred; remove DC so a biased source does not cause clicks.
         spectrum_re[0] = 0.0;
         spectrum_im[0] = 0.0;
-        let source_peak = cycle.iter().fold(0.0f32, |peak, sample| peak.max(sample.abs()));
+        let source_peak = cycle
+            .iter()
+            .fold(0.0f32, |peak, sample| peak.max(sample.abs()));
         let max_harmonic = n / 2;
         let log_max = (max_harmonic as f64).log2();
         let mut result = Vec::with_capacity(frame_count);
@@ -104,7 +109,9 @@ impl Wavetable {
             }
             fft(&mut real, &mut imag, true);
             let mut samples: Vec<f32> = real.into_iter().map(|sample| sample as f32).collect();
-            let peak = samples.iter().fold(0.0f32, |peak, sample| peak.max(sample.abs()));
+            let peak = samples
+                .iter()
+                .fold(0.0f32, |peak, sample| peak.max(sample.abs()));
             if peak > 1.0e-8 && source_peak > 1.0e-8 {
                 let gain = (source_peak / peak).min(4.0);
                 samples.iter_mut().for_each(|sample| *sample *= gain);
@@ -232,10 +239,7 @@ impl WavetableOscillator {
         }
         let amount = warp_amount.clamp(0.0, 1.0);
         let lookup_phase = match warp_mode.min(3) {
-            1 => {
-                self.phase
-                    + (std::f64::consts::TAU * self.phase).sin() * f64::from(amount) * 0.12
-            }
+            1 => self.phase + (std::f64::consts::TAU * self.phase).sin() * f64::from(amount) * 0.12,
             3 => (self.phase * f64::from(1.0 + amount * 7.0)).fract(),
             _ => self.phase,
         };

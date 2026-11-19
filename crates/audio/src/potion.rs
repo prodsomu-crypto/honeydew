@@ -102,6 +102,8 @@ impl PotionEngine {
             velocity: velocity.clamp(0.0, 1.0),
             pan: (pan.clamp(0.0, 1.0) - 0.5) * 2.0,
             envelope: 0.0,
+            filter_left: 0.0,
+            filter_right: 0.0,
             oscillators: [Oscillator::default(); OSCILLATORS],
         };
     }

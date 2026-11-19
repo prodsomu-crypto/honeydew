@@ -449,12 +449,29 @@ public final class HoneydewActivity extends NativeActivity {
     // A download for Rust (`update::get`), on Rust's worker thread, which it blocks: `url` (HTTPS, redirects followed)
     // into `path`, going on from the bytes the file holds. Returns why it failed ("offline" without a network), or null.
     public String download(String url, String path) {
+        return downloadInternal(url, path, null);
+    }
+
+    // Freesound search: the API token stays in the Authorization header, never in the request URL.
+    public String downloadWithHeader(String url, String path, String authorization) {
+        if (authorization == null || authorization.isEmpty()
+                || authorization.indexOf('\r') >= 0 || authorization.indexOf('\n') >= 0) {
+            return "Invalid API authorization header";
+        }
+        if (!url.startsWith("https://freesound.org/apiv2/search/")) {
+            return "The authenticated request is not a Freesound API search";
+        }
+        return downloadInternal(url, path, authorization);
+    }
+
+    private String downloadInternal(String url, String path, String authorization) {
         File file = new File(path);
         try {
             HttpURLConnection http = (HttpURLConnection) new URL(url).openConnection();
             http.setConnectTimeout(30000);
             http.setReadTimeout(60000);
             http.setRequestProperty("User-Agent", "Honeydew");
+            if (authorization != null) http.setRequestProperty("Authorization", authorization);
             long have = file.length();
             if (have > 0) http.setRequestProperty("Range", "bytes=" + have + "-");
             int code = http.getResponseCode();
@@ -462,10 +479,20 @@ public final class HoneydewActivity extends NativeActivity {
             if (code == 416 && have > 0) return null;
             if (code != 200 && code != 206) return "The server answered " + code + " (" + http.getResponseMessage() + ")";
             if (!"https".equals(http.getURL().getProtocol())) return "The download left HTTPS";
+            if (authorization != null && !"freesound.org".equalsIgnoreCase(http.getURL().getHost())) {
+                return "The authenticated request left Freesound";
+            }
+            long limit = authorization == null ? Long.MAX_VALUE : 4L * 1024 * 1024 + 1;
+            long length = http.getContentLengthLong();
+            if (authorization != null && length > 4L * 1024 * 1024) return "The catalogue response is too large";
             try (InputStream in = http.getInputStream(); OutputStream out = new FileOutputStream(file, code == 206)) {
-                copy(in, out, Long.MAX_VALUE);
+                copy(in, out, limit);
             } finally {
                 http.disconnect();
+            }
+            if (authorization != null && file.length() > 4L * 1024 * 1024) {
+                file.delete();
+                return "The catalogue response is too large";
             }
             return null;
         } catch (UnknownHostException | ConnectException e) {

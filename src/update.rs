@@ -22,7 +22,7 @@
 //!   macOS and Linux distributions), Android's own `HttpURLConnection` there. No HTTP or TLS crate.
 
 use std::fs;
-use std::io;
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
@@ -588,6 +588,111 @@ pub fn get(url: &str, to: &Path, grown: &dyn Fn(u64)) -> io::Result<()> {
             Some(secs) => thread::sleep(Duration::from_secs(secs)),
             None => return Err(err),
         }
+    }
+}
+
+/// Downloads the Freesound search response with a private Authorization header. The URL is pinned to the
+/// Freesound API origin, and the response is capped at 4 MiB. Call on a worker thread, never the UI or audio thread.
+pub fn get_with_header(
+    url: &str,
+    to: &Path,
+    authorization: &str,
+    grown: &dyn Fn(u64),
+) -> io::Result<()> {
+    if !url.starts_with("https://freesound.org/apiv2/search/")
+        || authorization.len() > 600
+        || !authorization.starts_with("Token ")
+        || authorization.bytes().any(|b| b.is_ascii_control())
+    {
+        return Err(io::Error::new(io::ErrorKind::InvalidInput, "Invalid authenticated catalogue request"));
+    }
+    let mut waits = RETRIES.into_iter();
+    loop {
+        let err = match transfer_with_header(url, to, authorization, grown) {
+            Ok(()) => return Ok(()),
+            Err(err) => err,
+        };
+        let hopeless = err.kind() == io::ErrorKind::NotFound || err.to_string() == OFFLINE;
+        match waits.next().filter(|_| !hopeless) {
+            Some(secs) => thread::sleep(Duration::from_secs(secs)),
+            None => return Err(err),
+        }
+    }
+}
+
+#[cfg(not(target_os = "android"))]
+fn transfer_with_header(
+    url: &str,
+    to: &Path,
+    authorization: &str,
+    grown: &dyn Fn(u64),
+) -> io::Result<()> {
+    use std::process::{Command, Stdio};
+
+    // Feed curl's config through stdin so the token does not appear in process arguments.
+    let escaped = authorization.replace('\\', "\\\\").replace('"', "\\\"");
+    let config = format!("header = \"Authorization: {escaped}\"\n");
+    let mut curl = Command::new("curl");
+    curl.args(["--fail", "--silent", "--show-error", "--location"])
+        .args(["--proto", "=https", "--proto-redir", "=https"])
+        .args(["--connect-timeout", "30", "--max-filesize", "4194304"])
+        .args(["--config", "-"])
+        .args(["--output"])
+        .arg(to)
+        .arg(url)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped());
+    #[cfg(windows)]
+    std::os::windows::process::CommandExt::creation_flags(&mut curl, 0x0800_0000);
+    let mut child = curl.spawn()?;
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin.write_all(config.as_bytes())?;
+    }
+    let status = loop {
+        if let Some(status) = child.try_wait()? {
+            break status;
+        }
+        grown(size_of(to));
+        thread::sleep(Duration::from_millis(100));
+    };
+    grown(size_of(to));
+    if status.success() {
+        Ok(())
+    } else {
+        let mut why = String::new();
+        if let Some(mut stderr) = child.stderr.take() {
+            use std::io::Read;
+            let _ = stderr.read_to_string(&mut why);
+        }
+        Err(io::Error::other(why.trim().to_owned()))
+    }
+}
+
+#[cfg(target_os = "android")]
+fn transfer_with_header(
+    url: &str,
+    to: &Path,
+    authorization: &str,
+    grown: &dyn Fn(u64),
+) -> io::Result<()> {
+    let (url, path, authorization) = (
+        url.to_owned(),
+        to.to_string_lossy().into_owned(),
+        authorization.to_owned(),
+    );
+    let worker = thread::spawn(move || {
+        crate::android::download_with_header(&url, &path, &authorization)
+    });
+    while !worker.is_finished() {
+        grown(size_of(to));
+        thread::sleep(Duration::from_millis(100));
+    }
+    grown(size_of(to));
+    match worker.join().map_err(|_| io::Error::other("The catalogue request stopped."))?.as_deref() {
+        None => Ok(()),
+        Some("offline") => Err(io::Error::other(OFFLINE)),
+        Some(why) => Err(io::Error::other(why.to_owned())),
     }
 }
 

@@ -8,7 +8,12 @@ use crate::song::ModuleInstance;
 use crate::ui::UiCtx;
 
 fn value(module: &ModuleInstance, index: usize) -> f32 {
-    module.params.get(index).copied().unwrap_or(0.0).clamp(0.0, 1.0)
+    module
+        .params
+        .get(index)
+        .copied()
+        .unwrap_or(0.0)
+        .clamp(0.0, 1.0)
 }
 
 /// Three layered preview traces, with each trace following its oscillator's wavetable position.
@@ -26,7 +31,8 @@ fn waveform(
     let traces = [(10, 1.0), (11, 0.72), (12, 0.48)];
     for (param, alpha) in traces {
         let morph = value(module, param);
-        let points = (0..=160).map(|i| {
+        let points = (0..=160)
+            .map(|i| {
             let x = i as f32 / 160.0;
             let phase = std::f32::consts::TAU * x;
             let sine = phase.sin();
@@ -45,8 +51,12 @@ fn waveform(
                 rect.left() + x * rect.width(),
                 rect.center().y - sample * rect.height() * 0.34,
             )
-        }).collect::<Vec<_>>();
-        painter.add(Shape::line(points, Stroke::new(cx.m.t() * 1.5, ink.gamma_multiply(alpha))));
+            })
+            .collect::<Vec<_>>();
+        painter.add(Shape::line(
+            points,
+            Stroke::new(cx.m.t() * 1.5, ink.gamma_multiply(alpha)),
+        ));
     }
     Vec::new()
 }
@@ -61,32 +71,32 @@ pub fn panel() -> Option<Panel> {
             knob(11300, "PITCH").p(7),
             knob(11400, "WAVE MORPH").p(10),
             toggle(11500, "ON").p(13),
-        ]).show(Show::Tab(0)),
+        ])
+        .show(Show::Tab(0)),
         hstack([
             knob(21100, "LEVEL").p(2),
             knob(21200, "PAN").p(5),
             knob(21300, "PITCH").p(8),
             knob(21400, "WAVE MORPH").p(11),
             toggle(21500, "ON").p(14),
-        ]).show(Show::Tab(1)),
+        ])
+        .show(Show::Tab(1)),
         hstack([
             knob(31100, "LEVEL").p(3),
             knob(31200, "PAN").p(6),
             knob(31300, "PITCH").p(9),
             knob(31400, "WAVE MORPH").p(12),
             toggle(31500, "ON").p(15),
-        ]).show(Show::Tab(2)),
-        hstack([
-            knob(41100, "CUTOFF").p(19),
-        ]).show(Show::Tab(3)),
+        ])
+        .show(Show::Tab(2)),
+        hstack([knob(41100, "CUTOFF").p(19)]).show(Show::Tab(3)),
         hstack([
             knob(51100, "ATTACK").p(16),
             knob(51200, "SUSTAIN").p(20),
             knob(51300, "RELEASE").p(17),
-        ]).show(Show::Tab(4)),
-        hstack([
-            knob(61100, "MASTER").p(18),
-        ]).show(Show::Tab(5)),
+        ])
+        .show(Show::Tab(4)),
+        hstack([knob(61100, "MASTER").p(18)]).show(Show::Tab(5)),
     ])))
 }
 

@@ -33,24 +33,24 @@ fn waveform(
         let morph = value(module, param);
         let points = (0..=160)
             .map(|i| {
-            let x = i as f32 / 160.0;
-            let phase = std::f32::consts::TAU * x;
-            let sine = phase.sin();
-            let triangle = (2.0 / std::f32::consts::PI) * phase.sin().asin();
-            let saw = 2.0 * x - 1.0;
-            let square = if x < 0.5 { 1.0 } else { -1.0 };
-            let (a, b, t) = if morph < 1.0 / 3.0 {
-                (sine, triangle, morph * 3.0)
-            } else if morph < 2.0 / 3.0 {
-                (triangle, saw, (morph - 1.0 / 3.0) * 3.0)
-            } else {
-                (saw, square, (morph - 2.0 / 3.0) * 3.0)
-            };
-            let sample = a + (b - a) * t;
-            pos2(
-                rect.left() + x * rect.width(),
-                rect.center().y - sample * rect.height() * 0.34,
-            )
+                let x = i as f32 / 160.0;
+                let phase = std::f32::consts::TAU * x;
+                let sine = phase.sin();
+                let triangle = (2.0 / std::f32::consts::PI) * phase.sin().asin();
+                let saw = 2.0 * x - 1.0;
+                let square = if x < 0.5 { 1.0 } else { -1.0 };
+                let (a, b, t) = if morph < 1.0 / 3.0 {
+                    (sine, triangle, morph * 3.0)
+                } else if morph < 2.0 / 3.0 {
+                    (triangle, saw, (morph - 1.0 / 3.0) * 3.0)
+                } else {
+                    (saw, square, (morph - 2.0 / 3.0) * 3.0)
+                };
+                let sample = a + (b - a) * t;
+                pos2(
+                    rect.left() + x * rect.width(),
+                    rect.center().y - sample * rect.height() * 0.34,
+                )
             })
             .collect::<Vec<_>>();
         painter.add(Shape::line(

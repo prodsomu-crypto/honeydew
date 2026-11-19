@@ -10,7 +10,7 @@ on:
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   CARGO_TERM_COLOR: always
@@ -24,7 +24,17 @@ jobs:
         with:
           components: rustfmt
       - uses: Swatinem/rust-cache@v2
-      - run: cargo fmt --check
+      - name: Format Rust sources
+        run: cargo fmt
+      - name: Commit formatter output
+        run: |
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -u
+            git commit -m "Apply rustfmt to Honeydew Sounds changes"
+            git push
+          fi
 
   android-apk:
     runs-on: ubuntu-latest

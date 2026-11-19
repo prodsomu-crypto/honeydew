@@ -124,6 +124,63 @@ pub fn save_mcp_token(_token: &str) -> std::io::Result<()> {
     Err(std::io::Error::other("MCP token storage is desktop-only"))
 }
 
+/// The Freesound API key is stored separately from ordinary preferences and project files.
+#[cfg(desktop)]
+fn sounds_api_key_path() -> Option<std::path::PathBuf> {
+    Some(mcp_token_path()?.with_file_name("freesound-api-key"))
+}
+
+#[cfg(target_os = "android")]
+fn sounds_api_key_path() -> Option<std::path::PathBuf> {
+    Some(crate::android::data_dir()?.join("freesound-api-key"))
+}
+
+#[cfg(not(any(desktop, target_os = "android")))]
+fn sounds_api_key_path() -> Option<std::path::PathBuf> {
+    None
+}
+
+/// Loads the locally stored Freesound API key. It is never part of the serialised Settings or a song.
+pub fn load_sounds_api_key() -> Option<String> {
+    let path = sounds_api_key_path()?;
+    let key = std::fs::read_to_string(path).ok()?;
+    let key = key.trim().to_owned();
+    (!key.is_empty()
+        && key.len() <= 512
+        && !key.bytes().any(|b| b.is_ascii_control() || b.is_ascii_whitespace()))
+    .then_some(key)
+}
+
+/// Saves the Freesound API key in a private per-device file. An empty value removes it.
+pub fn save_sounds_api_key(key: &str) -> std::io::Result<()> {
+    let path = sounds_api_key_path()
+        .ok_or_else(|| std::io::Error::other("Private API-key storage is unavailable on this platform"))?;
+    let key = key.trim();
+    if key.is_empty() {
+        return match std::fs::remove_file(path) {
+            Ok(()) => Ok(()),
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(err) => Err(err),
+        };
+    }
+    if key.len() > 512 || key.bytes().any(|b| b.is_ascii_control() || b.is_ascii_whitespace()) {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "The API key contains invalid characters.",
+        ));
+    }
+    let parent = path.parent().ok_or_else(|| std::io::Error::other("No configuration folder"))?;
+    std::fs::create_dir_all(parent)?;
+    let temporary = path.with_extension("tmp");
+    std::fs::write(&temporary, key.as_bytes())?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&temporary, std::fs::Permissions::from_mode(0o600))?;
+    }
+    std::fs::rename(temporary, path)
+}
+
 #[cfg(desktop)]
 const DEFAULT_SOUND_MODE: u8 = 0;
 #[cfg(not(desktop))]

@@ -1,5 +1,5 @@
 //! Potion's first playable wavetable voice engine.
-//! This is a DSP foundation; the CLAP instrument wrapper and custom editor are the next integration layer.
+//! Honeydew's native rack-instrument adapter is in `potion_instrument`; the custom editor is still to come.
 //! All voice storage is allocated in `PotionEngine::new`; rendering does not allocate or lock.
 
 use std::sync::Arc;

@@ -22,7 +22,7 @@
 //!   macOS and Linux distributions), Android's own `HttpURLConnection` there. No HTTP or TLS crate.
 
 use std::fs;
-use std::io::{self, Write};
+use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering::Relaxed};

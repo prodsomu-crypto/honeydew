@@ -41,6 +41,18 @@ impl SoundLicense {
     }
 
     pub fn requires_attribution(self) -> bool { matches!(self, Self::CcBy | Self::CcByNc) }
+
+    /// Whether the asset must only be used for non-commercial purposes.
+    pub fn is_non_commercial(self) -> bool { matches!(self, Self::CcByNc) }
+
+    /// A short, human-readable label for result rows and download confirmations.
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Cc0 => "CC0",
+            Self::CcBy => "CC BY",
+            Self::CcByNc => "CC BY-NC · personal use",
+        }
+    }
 }
 
 /// Provider-independent metadata for one catalogue result.
@@ -124,6 +136,9 @@ mod tests {
         assert_eq!(asset("https://creativecommons.org/licenses/by-nc/4.0/").accepted_license(), Some(SoundLicense::CcByNc));
         assert_eq!(asset("CC-BY-NC").accepted_license(), Some(SoundLicense::CcByNc));
         assert!(asset("CC-BY-NC").attribution_text().unwrap().contains("Example creator"));
+        assert!(SoundLicense::CcByNc.is_non_commercial());
+        assert_eq!(SoundLicense::CcByNc.label(), "CC BY-NC · personal use");
+        assert!(!SoundLicense::CcBy.is_non_commercial());
         assert!(!asset("CC-BY-ND").is_downloadable());
     }
 

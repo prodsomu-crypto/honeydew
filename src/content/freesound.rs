@@ -161,88 +161,58 @@ mod tests {
 }
 
 
-/// Upper bound for a search response before JSON parsing.
-pub const MAX_SEARCH_RESPONSE_BYTES: usize = 2 * 1024 * 1024;
 
-/// One page of eligible Freesound results. `total` is the provider's unfiltered result count.
-#[derive(Debug, Default)]
-pub struct SearchPage {
-    pub total: u64,
-    pub assets: Vec<SoundAsset>,
-}
-
-/// Errors surfaced by the asynchronous search request. Credential values are never included.
+/// Errors validating the local Freesound search configuration.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum SearchError {
+pub enum SearchConfigError {
     MissingCredential,
     InvalidCredential,
     InvalidQuery,
-    Http(String),
-    HttpStatus(u16),
-    ResponseTooLarge,
-    InvalidJson,
 }
 
-impl std::fmt::Display for SearchError {
+impl std::fmt::Display for SearchConfigError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::MissingCredential => f.write_str("Freesound API credential is not configured."),
             Self::InvalidCredential => f.write_str("Freesound API credential contains invalid characters."),
             Self::InvalidQuery => f.write_str("Search text is too long."),
-            Self::Http(_) => f.write_str("Could not reach Freesound. Check the connection and try again."),
-            Self::HttpStatus(401) => f.write_str("Freesound did not accept the configured API credential."),
-            Self::HttpStatus(429) => f.write_str("Freesound search is temporarily rate-limited. Try again later."),
-            Self::HttpStatus(_) => f.write_str("Freesound returned an unsuccessful response."),
-            Self::ResponseTooLarge => f.write_str("Freesound returned more search data than Honeydew allows."),
-            Self::InvalidJson => f.write_str("Freesound returned an unreadable search response."),
         }
     }
 }
 
-/// Start a non-blocking search. The callback runs when the HTTP request completes; callers should
-/// forward its result to the UI thread with a channel and must not call this from the audio thread.
-///
-/// The credential is sent only in the Authorization header, never in the URL. Do not log the
-/// request or its headers. This function intentionally does not persist credentials.
-pub fn search_async(
-    query: String,
-    page: u32,
-    page_size: u8,
-    api_key: String,
-    done: impl FnOnce(Result<SearchPage, SearchError>) + Send + 'static,
-) -> Result<(), SearchError> {
-    use std::time::Duration;
-
+/// Prepare the Authorization header value without putting the credential in a URL.
+/// Callers must not log this value or persist it in project files.
+pub fn authorization_value(api_key: &str) -> Result<String, SearchConfigError> {
     let key = api_key.trim();
     if key.is_empty() {
-        return Err(SearchError::MissingCredential);
+        return Err(SearchConfigError::MissingCredential);
     }
     if key.len() > 512 || key.bytes().any(|b| b.is_ascii_control() || b.is_ascii_whitespace()) {
-        return Err(SearchError::InvalidCredential);
+        return Err(SearchConfigError::InvalidCredential);
     }
-    if query.len() > 256 {
-        return Err(SearchError::InvalidQuery);
-    }
+    Ok(format!("Token {key}"))
+}
 
-    let request = ehttp::Request::get(search_url(&query, page, page_size))
-        .with_header("Authorization", format!("Token {key}"))
-        .with_header("Accept", "application/json")
-        .with_timeout(Some(Duration::from_secs(20)));
-
-    ehttp::fetch(request, move |response| {
-        let result = response.map_err(|_| SearchError::Http("request failed".into())).and_then(|response| {
-            if !response.ok {
-                return Err(SearchError::HttpStatus(response.status));
-            }
-            if response.bytes.len() > MAX_SEARCH_RESPONSE_BYTES {
-                return Err(SearchError::ResponseTooLarge);
-            }
-            let parsed: SearchResponse =
-                serde_json::from_slice(&response.bytes).map_err(|_| SearchError::InvalidJson)?;
-            let assets = parsed.results.into_iter().filter_map(SoundResult::into_asset).collect();
-            Ok(SearchPage { total: parsed.count, assets })
-        });
-        done(result);
-    });
+/// Validate a query before handing it to a provider transport.
+pub fn validate_query(query: &str) -> Result<(), SearchConfigError> {
+    if query.len() > 256 { return Err(SearchConfigError::InvalidQuery); }
     Ok(())
+}
+
+#[cfg(test)]
+mod config_tests {
+    use super::*;
+
+    #[test]
+    fn credentials_are_header_only_and_reject_control_characters() {
+        assert_eq!(authorization_value("  abc123  ").unwrap(), "Token abc123");
+        assert_eq!(authorization_value(""), Err(SearchConfigError::MissingCredential));
+        assert_eq!(authorization_value("bad\\nkey"), Err(SearchConfigError::InvalidCredential));
+    }
+
+    #[test]
+    fn search_query_has_a_bounded_length() {
+        assert_eq!(validate_query("ambient pad"), Ok(()));
+        assert_eq!(validate_query(&"x".repeat(257)), Err(SearchConfigError::InvalidQuery));
+    }
 }

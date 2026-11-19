@@ -95,12 +95,45 @@ impl State {
         self.local_browser = false;
     }
 
+    fn poll_local(&mut self, app: &mut AppCtx) {
+        // Existing local sample picks use the same worker decode and waveform preview as Honeydew's other pickers.
+        let local_result = self.local_loading.as_ref().map(|(_, receiver)| receiver.try_recv());
+        if let Some(result) = local_result {
+            match result {
+                Ok(decoded) => {
+                    let path = self.local_loading.as_ref().map(|(path, _)| path.clone()).unwrap_or_default();
+                    self.local_loading = None;
+                    let wave = decoded.wave;
+                    if let (Some(picker), Some(wave)) = (&mut self.local_picker, wave) {
+                        sample_picker::show_strip(picker, &path, Some(wave));
+                    } else if let Some(error) = decoded.error {
+                        self.status = error;
+                    }
+                }
+                Err(TryRecvError::Disconnected) => {
+                    self.local_loading = None;
+                    self.status = "Could not decode the selected local sound.".into();
+                }
+                Err(TryRecvError::Empty) => {}
+            }
+        }
+        if let Some(picker) = &mut self.local_picker {
+            sample_picker::preview(picker, app.audio);
+        }
+    }
+
     #[cfg(not(any(target_arch = "wasm32", target_os = "ios")))]
     fn begin_search(&mut self) {
         use crate::content::freesound::{authorization_value, search_url, validate_query};
         use crate::update;
 
         let query = self.query.trim().to_owned();
+        if self.page <= 1 {
+            self.results.clear();
+            self.selected = None;
+            self.total = 0;
+            self.cached_preview = None;
+        }
         let (tx, rx) = std::sync::mpsc::channel();
         let key = self.api_key.clone();
         let page = self.page.max(1);
@@ -179,8 +212,10 @@ impl State {
                 Ok(Ok((count, results))) => {
                     self.search = None;
                     self.total = count;
-                    self.results = results;
-                    self.selected = (!self.results.is_empty()).then_some(0);
+                    self.results.extend(results);
+                    if self.selected.is_none() {
+                        self.selected = (!self.results.is_empty()).then_some(0);
+                    }
                     self.status = if self.results.is_empty() {
                         "No reusable previews matched. Try a broader search.".into()
                     } else {
@@ -221,30 +256,6 @@ impl State {
             }
         }
 
-        // Existing local sample picks use the same worker decode and waveform preview as Honeydew's other pickers.
-        let local_result = self.local_loading.as_ref().map(|(_, receiver)| receiver.try_recv());
-        if let Some(result) = local_result {
-            match result {
-                Ok(decoded) => {
-                    let path = self.local_loading.as_ref().map(|(path, _)| path.clone()).unwrap_or_default();
-                    self.local_loading = None;
-                    let wave = decoded.wave;
-                    if let (Some(picker), Some(wave)) = (&mut self.local_picker, wave) {
-                        sample_picker::show_strip(picker, &path, Some(wave));
-                    } else if let Some(error) = decoded.error {
-                        self.status = error;
-                    }
-                }
-                Err(TryRecvError::Disconnected) => {
-                    self.local_loading = None;
-                    self.status = "Could not decode the selected local sound.".into();
-                }
-                Err(TryRecvError::Empty) => {}
-            }
-        }
-        if let Some(picker) = &mut self.local_picker {
-            sample_picker::preview(picker, app.audio);
-        }
     }
 }
 
@@ -302,6 +313,7 @@ pub fn show(state: &mut State, ui: &mut egui::Ui, app: &mut AppCtx) -> Option<Na
                 Some(PickerAction::Close) => state.close_local(app),
                 _ => {}
             }
+            state.poll_local(app);
             #[cfg(not(any(target_arch = "wasm32", target_os = "ios")))]
             state.poll_workers(app);
             return None;
@@ -315,6 +327,11 @@ pub fn show(state: &mut State, ui: &mut egui::Ui, app: &mut AppCtx) -> Option<Na
             state.key_loaded = true;
         }
         state.poll_workers(app);
+    }
+    state.poll_local(app);
+    #[cfg(not(any(target_arch = "wasm32", target_os = "ios")))]
+    if state.search.is_some() || state.preview.is_some() {
+        ctx.request_repaint_after(std::time::Duration::from_millis(120));
     }
 
     let mut open = true;
@@ -330,6 +347,7 @@ pub fn show(state: &mut State, ui: &mut egui::Ui, app: &mut AppCtx) -> Option<Na
                 ui.label(egui::RichText::new("Find sounds. Preview them. Bring them into your project.").strong());
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui.button("Browse installed sounds").clicked() {
+                        state.stop_sample(app);
                         state.local_picker = Some(sample_picker::picker(app.files));
                         state.local_browser = true;
                     }
@@ -434,7 +452,7 @@ pub fn show(state: &mut State, ui: &mut egui::Ui, app: &mut AppCtx) -> Option<Na
                             state.begin_preview(&asset);
                         }
                         let preview_ready = state.cached_preview.as_ref().is_some_and(|(id, _, _)| id == &asset.id);
-                        if ui.add_enabled(preview_ready, egui::Button::new("Import to My Samples")).clicked() {
+                        if ui.add_enabled(preview_ready, egui::Button::new("Import preview to My Samples")).clicked() {
                             if let Some((id, bytes, extension)) = state.cached_preview.take() {
                                 if id == asset.id {
                                     let license = asset.accepted_license().map_or("Unknown", |l| l.label());

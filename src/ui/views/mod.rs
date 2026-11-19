@@ -163,6 +163,8 @@ pub enum Overlay {
     MidiImport,
     /// The `Sound credits` screen (SETTINGS' `Sound credits`): the bundled sounds' sources and the app's own credits.
     Credits,
+    /// Honeydew Sounds catalogue and local sample browser.
+    HoneydewSounds,
     /// The What's New dialog (Help → `What's new`, or by itself once per notes version).
     WhatsNew,
     /// `Add MIDI CC track…`'s picker of the MIDI CCs, for a lane on this channel.
@@ -574,6 +576,8 @@ pub struct Slots {
     pub performance: Performance,
     /// The `Sound credits` screen's lines, made when it first shows.
     pub credits: credits::State,
+    /// The Honeydew Sounds catalogue, preview and local-library browser.
+    pub honeydew_sounds: honeydew_sounds::State,
     /// The What's New dialog's scroll.
     pub whats_new: whats_new::State,
     /// The MIDI CC picker's panel and pick.

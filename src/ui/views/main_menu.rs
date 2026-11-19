@@ -345,6 +345,7 @@ pub fn show(
             nav = Some(message(PURGE_TAG, vec![question], "Yes", "No"));
         }
         MainMenuAction::WhatsNew => nav = Some(Nav::Open(Overlay::WhatsNew)),
+        MainMenuAction::HoneydewSounds => nav = Some(Nav::Open(Overlay::HoneydewSounds)),
         MainMenuAction::ViewVersions => nav = Some(Nav::Open(Overlay::Versions)),
         // On Linux the file manager opens the folder that holds the file, elsewhere it selects it.
         #[cfg(not(target_arch = "wasm32"))]

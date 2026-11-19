@@ -133,6 +133,57 @@ impl ProjectFiles {
         Some(kept)
     }
 
+    /// Saves a catalogue preview into the user-owned sample folder, with its licence and source kept beside it.
+    /// The filename is made safe and unique; accepted extensions are deliberately limited to the formats the sample
+    /// picker and decoder already support.
+    pub fn keep_downloaded_sound(
+        &mut self,
+        title: &str,
+        extension: &str,
+        bytes: Vec<u8>,
+        attribution: &str,
+    ) -> io::Result<PathBuf> {
+        let extension = extension.to_ascii_lowercase();
+        if !matches!(extension.as_str(), "ogg" | "mp3" | "wav" | "flac") {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput, "Unsupported sample format"));
+        }
+        if bytes.is_empty() || bytes.len() > 32 * 1024 * 1024 {
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "Sample size is outside the allowed limit"));
+        }
+
+        let mut stem = String::new();
+        for ch in title.chars() {
+            if stem.chars().count() >= 64 {
+                break;
+            }
+            stem.push(if ch.is_alphanumeric() || matches!(ch, ' ' | '-' | '_' | '.') {
+                ch
+            } else {
+                '_'
+            });
+        }
+        let stem = stem.trim().trim_matches('.');
+        let stem = if stem.is_empty() { "Freesound sample" } else { stem };
+        let dir = self
+            .user_dir()
+            .ok_or_else(|| io::Error::other("The user sample folder is unavailable"))?
+            .join(SAMPLES_FOLDER);
+        let name = self.free_name(Some(&dir), stem, &extension, None);
+        let target = dir.join(format!("{name}.{extension}"));
+        let source = target.with_extension("txt");
+
+        if attribution.trim().is_empty() {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput, "Source and licence details are required"));
+        }
+        self.write_user_file(&source, attribution.as_bytes().to_vec())?;
+        if let Err(err) = self.write_user_file(&target, bytes) {
+            return Err(err);
+        }
+        self.library_changes += 1;
+        self.flash = Some(IMPORTED.into());
+        Ok(target)
+    }
+
     /// An audio file dropped on the window (the web hands its bytes, the desktop its path), kept in the user's
     /// [`SAMPLES_FOLDER`] as `Import` keeps a picked one ([`Self::keep_audio`]), so that songs refer to the copy. Returns
     /// where it is kept; a file that does not read shows [`IMPORT_FAILED`] and gives `None`.

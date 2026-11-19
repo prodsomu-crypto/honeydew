@@ -58,13 +58,20 @@ impl PotionInstrument {
             if raw.len() >= size {
                 // A 3x Osc custom WAV is already resampled to a 16384-point cycle off the audio thread.
                 // Decimation to Potion's 4096-point table keeps the imported cycle periodic and bounded.
-                let mut custom: Vec<f32> = raw.iter().step_by(raw.len() / size).take(size).copied().collect();
+                let mut custom: Vec<f32> = raw
+                    .iter()
+                    .step_by(raw.len() / size)
+                    .take(size)
+                    .copied()
+                    .collect();
                 if custom.len() == size {
                     let mean = custom.iter().sum::<f32>() / custom.len() as f32;
                     for sample in &mut custom {
                         *sample -= mean;
                     }
-                    let peak = custom.iter().fold(0.0f32, |peak, sample| peak.max(sample.abs()));
+                    let peak = custom
+                        .iter()
+                        .fold(0.0f32, |peak, sample| peak.max(sample.abs()));
                     if peak > 1.0e-6 {
                         custom.iter_mut().for_each(|sample| *sample /= peak);
                     }

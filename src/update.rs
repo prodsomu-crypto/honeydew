@@ -604,7 +604,10 @@ pub fn get_with_header(
         || !authorization.starts_with("Token ")
         || authorization.bytes().any(|b| b.is_ascii_control())
     {
-        return Err(io::Error::new(io::ErrorKind::InvalidInput, "Invalid authenticated catalogue request"));
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "Invalid authenticated catalogue request",
+        ));
     }
     let mut waits = RETRIES.into_iter();
     loop {
@@ -681,15 +684,18 @@ fn transfer_with_header(
         to.to_string_lossy().into_owned(),
         authorization.to_owned(),
     );
-    let worker = thread::spawn(move || {
-        crate::android::download_with_header(&url, &path, &authorization)
-    });
+    let worker =
+        thread::spawn(move || crate::android::download_with_header(&url, &path, &authorization));
     while !worker.is_finished() {
         grown(size_of(to));
         thread::sleep(Duration::from_millis(100));
     }
     grown(size_of(to));
-    match worker.join().map_err(|_| io::Error::other("The catalogue request stopped."))?.as_deref() {
+    match worker
+        .join()
+        .map_err(|_| io::Error::other("The catalogue request stopped."))?
+        .as_deref()
+    {
         None => Ok(()),
         Some("offline") => Err(io::Error::other(OFFLINE)),
         Some(why) => Err(io::Error::other(why.to_owned())),

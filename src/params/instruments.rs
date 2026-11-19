@@ -1066,16 +1066,16 @@ const SOUNDFONT_PLAYER: &[P] = &[
 ];
 
 const POTION: &[P] = &[
-    P::ENABLE, // 0
-    P::plain("Osc 1 Level", 0.7), // 1
-    P::plain("Osc 2 Level", 0.35), // 2
-    P::plain("Osc 3 Level", 0.2), // 3
-    P::plain("Osc 1 Pan", 0.325), // 4
-    P::plain("Osc 2 Pan", 0.675), // 5
-    P::plain("Osc 3 Pan", 0.5), // 6
-    P::plain("Osc 1 Pitch", 0.5), // 7
+    P::ENABLE,                      // 0
+    P::plain("Osc 1 Level", 0.7),   // 1
+    P::plain("Osc 2 Level", 0.35),  // 2
+    P::plain("Osc 3 Level", 0.2),   // 3
+    P::plain("Osc 1 Pan", 0.325),   // 4
+    P::plain("Osc 2 Pan", 0.675),   // 5
+    P::plain("Osc 3 Pan", 0.5),     // 6
+    P::plain("Osc 1 Pitch", 0.5),   // 7
     P::plain("Osc 2 Pitch", 0.375), // 8
-    P::plain("Osc 3 Pitch", 0.25), // 9
+    P::plain("Osc 3 Pitch", 0.25),  // 9
     P::plain("", 0.0), // 10: reserved for wavetable position until multi-frame tables are available
     P::plain("", 0.0), // 11
     P::plain("", 0.0), // 12

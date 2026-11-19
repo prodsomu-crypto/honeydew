@@ -153,6 +153,7 @@ pub fn ui_height(type_id: u16) -> Option<f32> {
         33 => 8.5,
         39 => 10.0,
         52 => 8.5,
+        53 => 10.0,
         // Effects and note effects.
         3 | 7 | 26 | 30 | 51 => 10.0,
         4 | 35 | 36 | 43 | 46 => 9.0,

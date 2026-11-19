@@ -3,11 +3,10 @@
 
 use std::sync::Arc;
 
+use crate::ProcessContext;
 use crate::instrument::Instrument;
 use crate::potion::{PotionEngine, PotionParams};
 use crate::wavetable::Wavetable;
-use crate::ProcessContext;
-
 /// Potion as a first-party Honeydew rack instrument.
 pub struct PotionInstrument {
     engine: PotionEngine,
@@ -20,9 +19,8 @@ impl PotionInstrument {
         let frame = (0..2048)
             .map(|i| (std::f32::consts::TAU * i as f32 / 2048.0).sin())
             .collect();
-        let table = Arc::new(
-            Wavetable::new(vec![frame]).expect("built-in Potion sine table is valid"),
-        );
+        let table =
+            Arc::new(Wavetable::new(vec![frame]).expect("built-in Potion sine table is valid"));
         Self {
             engine: PotionEngine::new(sample_rate, std::array::from_fn(|_| table.clone())),
             params: PotionParams::default(),
@@ -94,7 +92,11 @@ mod tests {
                 playing: false,
             },
         );
-        assert!(left.iter().chain(&right).any(|sample| sample.abs() > 1.0e-5));
+        assert!(
+            left.iter()
+                .chain(&right)
+                .any(|sample| sample.abs() > 1.0e-5)
+        );
         instrument.note_off(69);
         instrument.reset();
     }

@@ -497,17 +497,16 @@ fn filter_page(
         Stroke::new(1.0, ink.gamma_multiply(0.55)),
     );
     ui.painter().circle_filled(marker, 5.0, ink);
-    ui.painter().circle_stroke(marker, 8.0, Stroke::new(1.0, BG));
+    ui.painter()
+        .circle_stroke(marker, 8.0, Stroke::new(1.0, BG));
     let handle = Rect::from_center_size(marker, vec2(34.0, 34.0));
     let response = ui.interact(handle, id.with("filter-cutoff-q"), Sense::click_and_drag());
     if (response.dragged() || response.clicked())
         && let Some(pointer) = response.interact_pointer_pos()
     {
-        let next_cutoff =
-            ((pointer.x - plot.left()) / plot.width().max(1.0)).clamp(0.0, 1.0);
+        let next_cutoff = ((pointer.x - plot.left()) / plot.width().max(1.0)).clamp(0.0, 1.0);
         let next_resonance =
-            ((plot.center().y - pointer.y) / (plot.height() * 0.22).max(1.0))
-                .clamp(0.0, 1.0);
+            ((plot.center().y - pointer.y) / (plot.height() * 0.22).max(1.0)).clamp(0.0, 1.0);
         put(module, 19, next_cutoff, changed);
         put(module, 22, next_resonance, changed);
     }
@@ -579,8 +578,7 @@ fn envelope_page(
         .add(Shape::line(points.to_vec(), Stroke::new(2.2, ink)));
     for (handle, point) in [(0usize, p1), (1usize, p2), (2usize, p3)] {
         ui.painter().circle_filled(point, 5.0, ink);
-        ui.painter()
-            .circle_stroke(point, 8.0, Stroke::new(1.0, BG));
+        ui.painter().circle_stroke(point, 8.0, Stroke::new(1.0, BG));
         let hit = Rect::from_center_size(point, vec2(28.0, 28.0));
         let response = ui.interact(
             hit,
@@ -594,21 +592,20 @@ fn envelope_page(
             let y = pointer.y.clamp(plot.top(), plot.bottom());
             match handle {
                 0 => {
-                    let attack = (((x - plot.left()) / plot.width().max(1.0) - 0.05) / 0.28)
-                        .clamp(0.0, 1.0);
+                    let attack =
+                        (((x - plot.left()) / plot.width().max(1.0) - 0.05) / 0.28).clamp(0.0, 1.0);
                     put(module, 16, attack, changed);
                 }
                 1 => {
-                    let decay = (((x - p1.x) / plot.width().max(1.0) - 0.05) / 0.27)
-                        .clamp(0.0, 1.0);
-                    let sustain = ((plot.bottom() - y) / plot.height().max(1.0))
-                        .clamp(0.0, 1.0);
+                    let decay =
+                        (((x - p1.x) / plot.width().max(1.0) - 0.05) / 0.27).clamp(0.0, 1.0);
+                    let sustain = ((plot.bottom() - y) / plot.height().max(1.0)).clamp(0.0, 1.0);
                     put(module, 21, decay, changed);
                     put(module, 20, sustain, changed);
                 }
                 _ => {
-                    let release = ((x - p2.x) / ((plot.right() - p2.x) * 0.72).max(1.0))
-                        .clamp(0.0, 1.0);
+                    let release =
+                        ((x - p2.x) / ((plot.right() - p2.x) * 0.72).max(1.0)).clamp(0.0, 1.0);
                     put(module, 17, release, changed);
                 }
             }

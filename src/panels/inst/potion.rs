@@ -466,13 +466,21 @@ fn filter_page(
     graph_grid(ui, plot);
     let cutoff = value(module, 19);
     let resonance = value(module, 22);
+    let filter_mode = (value(module, 23) * 2.0).round() as usize;
     let points = (0..=120)
         .map(|i| {
             let x = i as f32 / 120.0;
             let ratio = (x / (cutoff * 0.95 + 0.025)).max(0.001);
             let low = 1.0 / (1.0 + ratio.powf(3.7)).sqrt();
-            let peak = (-((x - cutoff).powi(2)) / 0.0035).exp() * resonance * 0.45;
-            let y = (low + peak).clamp(0.0, 1.0);
+            let high = 1.0 - low;
+            let band = (2.0 * ratio / (1.0 + ratio * ratio)).clamp(0.0, 1.0);
+            let base = match filter_mode {
+                1 => band,
+                2 => high,
+                _ => low,
+            };
+            let peak = (-((x - cutoff).powi(2)) / 0.0035).exp() * resonance * 0.32;
+            let y = (base + peak).clamp(0.0, 1.0);
             pos2(
                 plot.left() + x * plot.width(),
                 plot.bottom() - y * plot.height(),
@@ -480,11 +488,29 @@ fn filter_page(
         })
         .collect::<Vec<_>>();
     ui.painter().add(Shape::line(points, Stroke::new(2.0, ink)));
-    let x = plot.left() + cutoff * plot.width();
-    ui.painter().line_segment(
-        [pos2(x, plot.top()), pos2(x, plot.bottom())],
-        Stroke::new(1.0, ink.gamma_multiply(0.65)),
+    let marker = pos2(
+        plot.left() + cutoff * plot.width(),
+        plot.center().y - resonance * plot.height() * 0.22,
     );
+    ui.painter().line_segment(
+        [pos2(marker.x, plot.top()), pos2(marker.x, plot.bottom())],
+        Stroke::new(1.0, ink.gamma_multiply(0.55)),
+    );
+    ui.painter().circle_filled(marker, 5.0, ink);
+    ui.painter().circle_stroke(marker, 8.0, Stroke::new(1.0, BG));
+    let handle = Rect::from_center_size(marker, vec2(34.0, 34.0));
+    let response = ui.interact(handle, id.with("filter-cutoff-q"), Sense::click_and_drag());
+    if (response.dragged() || response.clicked())
+        && let Some(pointer) = response.interact_pointer_pos()
+    {
+        let next_cutoff =
+            ((pointer.x - plot.left()) / plot.width().max(1.0)).clamp(0.0, 1.0);
+        let next_resonance =
+            ((plot.center().y - pointer.y) / (plot.height() * 0.22).max(1.0))
+                .clamp(0.0, 1.0);
+        put(module, 19, next_cutoff, changed);
+        put(module, 22, next_resonance, changed);
+    }
 
     let side = Rect::from_min_max(pos2(graph.right() + 8.0, area.top()), area.right_bottom());
     card(ui, side, "FILTER DESIGN", ink);
@@ -551,10 +577,42 @@ fn envelope_page(
     let points = [p0, p1, p2, p3, p4];
     ui.painter()
         .add(Shape::line(points.to_vec(), Stroke::new(2.2, ink)));
-    for (i, p) in points.iter().enumerate().skip(1).take(3) {
-        ui.painter().circle_filled(*p, 4.0, ink);
-        ui.painter().circle_stroke(*p, 6.0, Stroke::new(1.0, BG));
-        let _ = i;
+    for (handle, point) in [(0usize, p1), (1usize, p2), (2usize, p3)] {
+        ui.painter().circle_filled(point, 5.0, ink);
+        ui.painter()
+            .circle_stroke(point, 8.0, Stroke::new(1.0, BG));
+        let hit = Rect::from_center_size(point, vec2(28.0, 28.0));
+        let response = ui.interact(
+            hit,
+            id.with(("amp-envelope-handle", handle)),
+            Sense::click_and_drag(),
+        );
+        if (response.dragged() || response.clicked())
+            && let Some(pointer) = response.interact_pointer_pos()
+        {
+            let x = pointer.x.clamp(plot.left(), plot.right());
+            let y = pointer.y.clamp(plot.top(), plot.bottom());
+            match handle {
+                0 => {
+                    let attack = (((x - plot.left()) / plot.width().max(1.0) - 0.05) / 0.28)
+                        .clamp(0.0, 1.0);
+                    put(module, 16, attack, changed);
+                }
+                1 => {
+                    let decay = (((x - p1.x) / plot.width().max(1.0) - 0.05) / 0.27)
+                        .clamp(0.0, 1.0);
+                    let sustain = ((plot.bottom() - y) / plot.height().max(1.0))
+                        .clamp(0.0, 1.0);
+                    put(module, 21, decay, changed);
+                    put(module, 20, sustain, changed);
+                }
+                _ => {
+                    let release = ((plot.right() - x) / (plot.width() * 0.38).max(1.0))
+                        .clamp(0.0, 1.0);
+                    put(module, 17, release, changed);
+                }
+            }
+        }
     }
     let controls_top = main.bottom() + 7.0;
     let gap = 7.0;

@@ -75,7 +75,13 @@ impl PotionInstrument {
                     if peak > 1.0e-6 {
                         custom.iter_mut().for_each(|sample| *sample /= peak);
                     }
-                    frames.push(custom);
+                    // A single-cycle import becomes a 16-frame harmonic-scan bank: low harmonics first,
+                    // the full imported spectrum at the end. Preparation stays outside the render callback.
+                    if let Ok(spectral) = Wavetable::spectral_frames(&custom, 16) {
+                        frames.extend(spectral);
+                    } else {
+                        frames.push(custom);
+                    }
                 }
             }
         }
@@ -115,7 +121,7 @@ impl Instrument for PotionInstrument {
             20 => self.params.sustain = value,
             21 => self.params.decay_seconds = Self::seconds(value, 8.0),
             22 => self.params.filter_resonance = value,
-            23 => self.params.filter_mode = (value * 2.0).round() as u8,
+            23 => self.params.filter_mode = (value * 3.0).round() as u8,
             24 => self.params.unison = 1 + (value * 6.0).round() as usize,
             25 => self.params.detune_cents = value * 50.0,
             26 => self.params.stereo_spread = value,
@@ -123,11 +129,11 @@ impl Instrument for PotionInstrument {
             28 => self.params.voice_mode = (value * 2.0).round() as u8,
             29 => self.params.lfo_rate[0] = Self::rate(value),
             30 => self.params.lfo_amount[0] = value,
-            31 => self.params.lfo_destination[0] = (value * 2.0).round() as u8,
+            31 => self.params.lfo_destination[0] = (value * 5.0).round() as u8,
             32 => self.params.lfo_wave[0] = (value * 2.0).round() as u8,
             33 => self.params.lfo_rate[1] = Self::rate(value),
             34 => self.params.lfo_amount[1] = value,
-            35 => self.params.lfo_destination[1] = (value * 2.0).round() as u8,
+            35 => self.params.lfo_destination[1] = (value * 5.0).round() as u8,
             36 => self.params.lfo_wave[1] = (value * 2.0).round() as u8,
             37 => self.params.fm_amount = value,
             38 => self.params.ring_amount = value,
@@ -142,7 +148,7 @@ impl Instrument for PotionInstrument {
                 let route = (index - 47) / 3;
                 match (index - 47) % 3 {
                     0 => self.params.mod_source[route] = (value * 5.0).round() as u8,
-                    1 => self.params.mod_destination[route] = (value * 5.0).round() as u8,
+                    1 => self.params.mod_destination[route] = (value * 8.0).round() as u8,
                     _ => self.params.mod_amount[route] = value * 2.0 - 1.0,
                 }
             }
@@ -150,6 +156,13 @@ impl Instrument for PotionInstrument {
             60 => self.params.filter_decay_seconds = Self::seconds(value, 8.0),
             61 => self.params.filter_sustain = value,
             62 => self.params.filter_release_seconds = Self::seconds(value, 12.0),
+            63 => self.params.lfo_sync[0] = value >= 0.5,
+            64 => self.params.lfo_sync_division[0] = (value * 6.0).round() as u8,
+            65 => self.params.lfo_sync[1] = value >= 0.5,
+            66 => self.params.lfo_sync_division[1] = (value * 6.0).round() as u8,
+            67 => self.params.pitch_bend_range = 1.0 + value * 23.0,
+            68 => self.params.filter_key_track = value * 2.0 - 1.0,
+            69 => self.params.filter_velocity = value,
             _ => {}
         }
     }
@@ -173,7 +186,7 @@ impl Instrument for PotionInstrument {
         }
         let value = value.clamp(0.0, 1.0);
         match index {
-            4 => self.params.pitch_bend = value * 4.0 - 2.0,
+            4 => self.params.pitch_bend = (value * 2.0 - 1.0) * self.params.pitch_bend_range,
             5 => self.params.aftertouch = value,
             8 => self.params.mod_wheel = value,
             _ => {}
@@ -190,7 +203,14 @@ impl Instrument for PotionInstrument {
 
     fn process(&mut self, left: &mut [f32], right: &mut [f32], context: ProcessContext) {
         self.engine.set_sample_rate(context.sample_rate);
-        self.engine.render(left, right, &self.params);
+        self.engine.render_with_transport(
+            left,
+            right,
+            &self.params,
+            context.tempo_bpm,
+            context.start_beat,
+            context.playing,
+        );
     }
 }
 
@@ -243,5 +263,12 @@ mod tests {
         assert_eq!(instrument.params.pitch_bend, 2.0);
         assert_eq!(instrument.params.aftertouch, 0.75);
         assert_eq!(instrument.params.mod_wheel, 0.25);
+        instrument.set_parameter(67, 0.5);
+        instrument.set_controller(4, 1.0);
+        assert!((instrument.params.pitch_bend - 12.5).abs() < 1.0e-6);
+        instrument.set_parameter(63, 1.0);
+        instrument.set_parameter(64, 1.0);
+        assert!(instrument.params.lfo_sync[0]);
+        assert_eq!(instrument.params.lfo_sync_division[0], 6);
     }
 }

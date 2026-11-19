@@ -61,6 +61,59 @@ impl Wavetable {
         })
     }
 
+    /// Builds a harmonic-scan bank from one periodic cycle. Frames progress from a fundamental-only sine
+    /// towards the complete source spectrum, so imported single-cycle WAVs can be scanned like a wavetable.
+    /// Preparation is intended for the app/worker thread, never the render callback.
+    pub fn spectral_frames(cycle: &[f32], frame_count: usize) -> Result<Vec<Vec<f32>>, WavetableError> {
+        if frame_count < 2 {
+            return Err(WavetableError::InvalidLength);
+        }
+        if frame_count > MAX_FRAMES {
+            return Err(WavetableError::TooManyFrames);
+        }
+        let n = cycle.len();
+        if !(MIN_TABLE_SIZE..=MAX_TABLE_SIZE).contains(&n) || !n.is_power_of_two() {
+            return Err(WavetableError::InvalidLength);
+        }
+        if cycle.iter().any(|sample| !sample.is_finite()) {
+            return Err(WavetableError::NonFiniteSample);
+        }
+
+        let mut spectrum_re: Vec<f64> = cycle.iter().map(|&sample| f64::from(sample)).collect();
+        let mut spectrum_im = vec![0.0; n];
+        fft(&mut spectrum_re, &mut spectrum_im, false);
+        // A wavetable is periodic and zero-centred; remove DC so a biased source does not cause clicks.
+        spectrum_re[0] = 0.0;
+        spectrum_im[0] = 0.0;
+        let source_peak = cycle.iter().fold(0.0f32, |peak, sample| peak.max(sample.abs()));
+        let max_harmonic = n / 2;
+        let log_max = (max_harmonic as f64).log2();
+        let mut result = Vec::with_capacity(frame_count);
+
+        for frame in 0..frame_count {
+            let progress = frame as f64 / (frame_count - 1) as f64;
+            let cutoff = 2.0f64.powf(progress * log_max).round() as usize;
+            let mut real = spectrum_re.clone();
+            let mut imag = spectrum_im.clone();
+            for bin in 1..n {
+                let harmonic = bin.min(n - bin);
+                if harmonic > cutoff {
+                    real[bin] = 0.0;
+                    imag[bin] = 0.0;
+                }
+            }
+            fft(&mut real, &mut imag, true);
+            let mut samples: Vec<f32> = real.into_iter().map(|sample| sample as f32).collect();
+            let peak = samples.iter().fold(0.0f32, |peak, sample| peak.max(sample.abs()));
+            if peak > 1.0e-8 && source_peak > 1.0e-8 {
+                let gain = (source_peak / peak).min(4.0);
+                samples.iter_mut().for_each(|sample| *sample *= gain);
+            }
+            result.push(samples);
+        }
+        Ok(result)
+    }
+
     pub fn frame_count(&self) -> usize {
         self.frames.len()
     }
@@ -289,6 +342,31 @@ mod tests {
             Some(WavetableError::MismatchedFrameLength)
         );
     }
+    #[test]
+    fn spectral_frames_form_a_bounded_harmonic_scan_bank() {
+        let cycle: Vec<f32> = (0..256)
+            .map(|i| {
+                let phase = std::f32::consts::TAU * i as f32 / 256.0;
+                phase.sin() + 0.35 * (phase * 7.0).sin()
+            })
+            .collect();
+        let frames = Wavetable::spectral_frames(&cycle, 16).unwrap();
+        assert_eq!(frames.len(), 16);
+        assert!(frames.iter().all(|frame| frame.len() == 256));
+        assert!(frames.iter().flatten().all(|sample| sample.is_finite()));
+        let harmonic_energy = |frame: &[f32], harmonic: usize| {
+            let mut re: Vec<f64> = frame.iter().map(|&sample| f64::from(sample)).collect();
+            let mut im = vec![0.0; frame.len()];
+            fft(&mut re, &mut im, false);
+            re[harmonic].hypot(im[harmonic])
+        };
+        assert!(harmonic_energy(&frames[15], 7) > harmonic_energy(&frames[0], 7));
+        assert_eq!(
+            Wavetable::spectral_frames(&cycle, MAX_FRAMES + 1).err(),
+            Some(WavetableError::TooManyFrames)
+        );
+    }
+
     #[test]
     fn oscillator_phase_wraps() {
         let table = Wavetable::new(vec![sine(256)]).unwrap();

@@ -1128,7 +1128,22 @@ const POTION: &[P] = &[
     P::plain("Filter Attack", 0.2562),    // 59: 0.01 s
     P::plain("Filter Decay", 0.614),      // 60: 0.25 s
     P::plain("Filter Sustain", 0.7),      // 61
-    P::plain("Filter Release", 0.5531),   // 62: 0.18 s
+    P::plain("Filter Release", 0.5531), // 62: 0.18 s
+    P::toggle("LFO 1 Tempo Sync", 0.0), // 63
+    P::menu(
+        "LFO 1 Sync Division",
+        0.5,
+        &["1/8", "1/4", "1/2", "1/1", "2/1", "4/1", "8/1"],
+    ), // 64
+    P::toggle("LFO 2 Tempo Sync", 0.0), // 65
+    P::menu(
+        "LFO 2 Sync Division",
+        0.5,
+        &["1/8", "1/4", "1/2", "1/1", "2/1", "4/1", "8/1"],
+    ), // 66
+    P::plain("Pitch Bend Range", 1.0 / 23.0), // 67: 2 semitones
+    P::cont("Filter Key Track", 0.5, AMOUNT_1), // 68
+    P::plain("Filter Velocity", 0.0), // 69
 ];
 
 pub static MODULES: &[ModuleSpec] = &[

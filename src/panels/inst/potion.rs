@@ -161,6 +161,9 @@ fn slider_value_label(param: usize, value: f32) -> String {
         25 => format!("{:.0} ct", value * 50.0),
         27 => time_label(value, 2.0),
         28 => ["POLY", "MONO", "LEGATO"][(value * 2.0).round() as usize].to_owned(),
+        67 => format!("{:.0} st", 1.0 + value * 23.0),
+        68 => format!("{:+.0}%", (value * 2.0 - 1.0) * 100.0),
+        69 => format!("{:.0}%", value * 100.0),
         29 | 33 => frequency_label(0.03 * (20.0f32 / 0.03).powf(value)),
         45 => format!("{} voices", 1 + (value * 31.0).round() as usize),
         49 | 52 | 55 | 58 => format!("{:+.0}%", (value * 2.0 - 1.0) * 100.0),
@@ -416,7 +419,18 @@ fn table_page(
         pos2(area.left(), content_top),
         vec2(left_w, area.bottom() - content_top - 65.0),
     );
-    card(ui, graph, "SINGLE-CYCLE WAVETABLE VIEW", ink);
+    let has_custom = module.file.custom_data.is_some();
+    let bank_frames = if has_custom { 20.0 } else { 4.0 };
+    card(
+        ui,
+        graph,
+        if has_custom {
+            "IMPORTED HARMONIC-SCAN BANK · 20 FRAMES"
+        } else {
+            "FACTORY WAVETABLE BANK · 4 FRAMES"
+        },
+        ink,
+    );
     let wave_rect = graph.shrink2(vec2(13.0, 27.0));
     draw_wave(ui, wave_rect, value(module, 10 + selected), ink);
 
@@ -453,7 +467,7 @@ fn table_page(
             .interact(r, id.with(("wave-preset", selected, i)), Sense::click())
             .clicked()
         {
-            let v = [0.0, 0.333, 0.666, 0.999][i];
+            let v = i as f32 / (bank_frames - 1.0);
             put(module, 10 + selected, v, changed);
         }
     }
@@ -483,7 +497,11 @@ fn table_page(
     ui.painter().text(
         pos2(area.left() + 3.0, area.bottom() - 44.0),
         Align2::LEFT_TOP,
-        "Wave preview follows this oscillator's table position.",
+        if has_custom {
+            "Factory frames come first; imported harmonic frames scan from frame 5 to frame 20."
+        } else {
+            "Import a cycle to add 16 progressively brighter harmonic frames to this bank."
+        },
         FontId::proportional(9.0),
         MUTED,
     );
@@ -507,7 +525,7 @@ fn filter_page(
     graph_grid(ui, plot);
     let cutoff = value(module, 19);
     let resonance = value(module, 22);
-    let filter_mode = (value(module, 23) * 2.0).round() as usize;
+    let filter_mode = (value(module, 23) * 3.0).round() as usize;
     let points = (0..=120)
         .map(|i| {
             let x = i as f32 / 120.0;
@@ -518,6 +536,7 @@ fn filter_page(
             let base = match filter_mode {
                 1 => band,
                 2 => high,
+                3 => 1.0 - band,
                 _ => low,
             };
             let peak = (-((x - cutoff).powi(2)) / 0.0035).exp() * resonance * 0.32;
@@ -555,7 +574,13 @@ fn filter_page(
     let side = Rect::from_min_max(pos2(graph.right() + 8.0, area.top()), area.right_bottom());
     card(ui, side, "FILTER DESIGN", ink);
     let sh = 48.0;
-    let controls = [(19, "CUTOFF"), (22, "RESONANCE"), (44, "ENVELOPE AMOUNT")];
+    let controls = [
+        (19, "CUTOFF"),
+        (22, "RESONANCE"),
+        (44, "ENVELOPE AMOUNT"),
+        (68, "KEY TRACK"),
+        (69, "VELOCITY TRACK"),
+    ];
     for (i, (param, label)) in controls.into_iter().enumerate() {
         slider(
             ui,
@@ -580,7 +605,7 @@ fn filter_page(
         ),
         module,
         23,
-        &["LOW PASS", "BAND PASS", "HIGH PASS"],
+        &["LOW PASS", "BAND PASS", "HIGH PASS", "NOTCH"],
         ink,
         changed,
     );
@@ -803,7 +828,7 @@ fn modulation_page(
             ),
             module,
             31 + lfo * 4,
-            &["PITCH", "FILTER", "PAN"],
+            &["PITCH", "FILTER", "PAN", "OSC 1 PITCH", "OSC 2 PITCH", "OSC 3 PITCH"],
             ink,
             changed,
         );
@@ -817,6 +842,32 @@ fn modulation_page(
             module,
             32 + lfo * 4,
             &["SINE", "TRIANGLE", "SQUARE"],
+            ink,
+            changed,
+        );
+        choice(
+            ui,
+            id,
+            Rect::from_min_size(
+                pos2(panel.left() + 8.0, control_top + 114.0),
+                vec2(control_width, 22.0),
+            ),
+            module,
+            63 + lfo * 2,
+            &["FREE RUN", "TEMPO SYNC"],
+            ink,
+            changed,
+        );
+        choice(
+            ui,
+            id,
+            Rect::from_min_size(
+                pos2(panel.left() + 8.0, control_top + 138.0),
+                vec2(control_width, 22.0),
+            ),
+            module,
+            64 + lfo * 2,
+            &["1/8", "1/4", "1/2", "1/1", "2/1", "4/1", "8/1"],
             ink,
             changed,
         );
@@ -930,6 +981,19 @@ fn voice_page(
         ink,
         changed,
     );
+    slider(
+        ui,
+        id,
+        Rect::from_min_size(
+            pos2(area.left(), row + 42.0),
+            vec2(area.width() * 0.58, 44.0),
+        ),
+        module,
+        67,
+        "PITCH BEND RANGE",
+        ink,
+        changed,
+    );
 }
 
 fn mix_page(
@@ -1034,7 +1098,17 @@ fn matrix_page(
             ),
             module,
             base + 1,
-            &["PITCH", "FILTER", "PAN", "OSC 1", "OSC 2", "OSC 3"],
+            &[
+                "PITCH",
+                "FILTER",
+                "PAN",
+                "OSC 1 LEVEL",
+                "OSC 2 LEVEL",
+                "OSC 3 LEVEL",
+                "OSC 1 PITCH",
+                "OSC 2 PITCH",
+                "OSC 3 PITCH",
+            ],
             ink,
             changed,
         );

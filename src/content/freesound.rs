@@ -81,9 +81,16 @@ pub struct Previews {
 impl SoundResult {
     /// Convert one result, excluding unknown/ND licences and results without a usable preview.
     pub fn into_asset(self) -> Option<SoundAsset> {
-        let preview = self.previews.high_quality_ogg
-            .or(self.previews.high_quality_mp3)
-            .or(self.previews.low_quality_mp3)?;
+        // Preview URLs are untrusted API data. Only fetch from Freesound's own HTTPS hosts; accepting
+        // arbitrary hosts here would turn a catalogue response into an unrestricted network fetch.
+        let preview = [
+            self.previews.high_quality_ogg,
+            self.previews.high_quality_mp3,
+            self.previews.low_quality_mp3,
+        ]
+        .into_iter()
+        .flatten()
+        .find(|url| is_freesound_preview_url(url))?;
         let asset = SoundAsset {
             id: format!("freesound:{}", self.id),
             title: self.name,
@@ -102,6 +109,22 @@ impl SoundResult {
         };
         asset.is_downloadable().then_some(asset)
     }
+}
+
+/// Whether a provider-supplied preview URL is HTTPS and hosted by Freesound.
+fn is_freesound_preview_url(url: &str) -> bool {
+    let Some(authority_and_path) = url.strip_prefix("https://") else {
+        return false;
+    };
+    let authority = authority_and_path
+        .split(['/', '?', '#'])
+        .next()
+        .unwrap_or_default();
+    if authority.is_empty() || authority.contains('@') || authority.contains(':') {
+        return false;
+    }
+    let host = authority.to_ascii_lowercase();
+    host == "freesound.org" || host.ends_with(".freesound.org")
 }
 
 fn category_from_tags(tags: &[String]) -> Category {
@@ -153,10 +176,23 @@ mod tests {
 
     #[test]
     fn filters_unknown_licences_and_missing_previews() {
-        let base = r#"{"id":1,"name":"x","username":"y","license":"CC-BY-ND","previews":{"preview-hq-ogg":"https://cdn.example/x.ogg"}}"#;
+        let base = r#"{"id":1,"name":"x","username":"y","license":"CC-BY-ND","previews":{"preview-hq-ogg":"https://cdn.freesound.org/x.ogg"}}"#;
         assert!(serde_json::from_str::<SoundResult>(base).unwrap().into_asset().is_none());
         let no_preview = r#"{"id":1,"name":"x","username":"y","license":"CC0","previews":{}}"#;
         assert!(serde_json::from_str::<SoundResult>(no_preview).unwrap().into_asset().is_none());
+        let external_preview = r#"{"id":1,"name":"x","username":"y","license":"CC0","previews":{"preview-hq-ogg":"https://example.org/x.ogg"}}"#;
+        assert!(serde_json::from_str::<SoundResult>(external_preview).unwrap().into_asset().is_none());
+    }
+
+    #[test]
+    fn preview_hosts_must_be_secure_freesound_hosts() {
+        assert!(is_freesound_preview_url("https://cdn.freesound.org/previews/1.ogg"));
+        assert!(is_freesound_preview_url("https://freesound.org/data/previews/1.ogg"));
+        assert!(!is_freesound_preview_url("http://cdn.freesound.org/1.ogg"));
+        assert!(!is_freesound_preview_url("https://freesound.org.example.com/1.ogg"));
+        assert!(!is_freesound_preview_url("https://example.org/1.ogg"));
+        assert!(!is_freesound_preview_url("https://user@freesound.org/1.ogg"));
+        assert!(!is_freesound_preview_url("https://freesound.org:443/1.ogg"));
     }
 }
 

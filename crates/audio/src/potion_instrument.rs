@@ -164,6 +164,11 @@ impl Instrument for PotionInstrument {
             68 => self.params.filter_key_track = value * 2.0 - 1.0,
             69 => self.params.filter_velocity = value,
             70 => self.params.filter_notch = value >= 0.5,
+            71 => self.params.pitch_attack_seconds = Self::seconds(value, 8.0),
+            72 => self.params.pitch_decay_seconds = Self::seconds(value, 8.0),
+            73 => self.params.pitch_sustain = value,
+            74 => self.params.pitch_release_seconds = Self::seconds(value, 12.0),
+            75 => self.params.pitch_env_amount = value * 48.0 - 24.0,
             _ => {}
         }
     }
@@ -271,10 +276,12 @@ mod tests {
         instrument.set_parameter(31, 0.5);
         instrument.set_parameter(48, 0.8);
         instrument.set_parameter(70, 1.0);
+        instrument.set_parameter(75, 0.75);
         assert_eq!(instrument.params.filter_mode, 1);
         assert_eq!(instrument.params.lfo_destination[0], 1);
         assert_eq!(instrument.params.mod_destination[0], 4);
         assert!(instrument.params.filter_notch);
+        assert!((instrument.params.pitch_env_amount - 12.0).abs() < 1.0e-6);
         instrument.set_parameter(63, 1.0);
         instrument.set_parameter(64, 1.0);
         assert!(instrument.params.lfo_sync[0]);

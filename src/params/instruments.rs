@@ -1145,6 +1145,11 @@ const POTION: &[P] = &[
     P::cont("Filter Key Track", 0.56, AMOUNT_1), // 68: 0.12 default depth
     P::plain("Filter Velocity", 0.0), // 69
     P::toggle("Filter Notch", 0.0), // 70
+    P::plain("Pitch Env Attack", 0.2562), // 71: 0.01 s
+    P::plain("Pitch Env Decay", 0.614), // 72: 0.25 s
+    P::plain("Pitch Env Sustain", 0.0), // 73
+    P::plain("Pitch Env Release", 0.5531), // 74: 0.18 s
+    P::plain("Pitch Env Amount", 0.5), // 75: zero semitones
 ];
 
 pub static MODULES: &[ModuleSpec] = &[

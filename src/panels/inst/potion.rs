@@ -163,7 +163,10 @@ fn slider_value_label(param: usize, value: f32) -> String {
         28 => ["POLY", "MONO", "LEGATO"][(value * 2.0).round() as usize].to_owned(),
         67 => format!("{:.0} st", 1.0 + value * 23.0),
         68 => format!("{:+.0}%", (value * 2.0 - 1.0) * 100.0),
-        69 => format!("{:.0}%", value * 100.0),
+        69 | 73 => format!("{:.0}%", value * 100.0),
+        71 | 72 => time_label(value, 8.0),
+        74 => time_label(value, 12.0),
+        75 => format!("{:+.1} st", value * 48.0 - 24.0),
         29 | 33 => frequency_label(0.03 * (20.0f32 / 0.03).powf(value)),
         45 => format!("{} voices", 1 + (value * 31.0).round() as usize),
         49 | 52 | 55 | 58 => format!("{:+.0}%", (value * 2.0 - 1.0) * 100.0),
@@ -636,7 +639,7 @@ fn envelope_page(
     ink: Color32,
     changed: &mut Vec<usize>,
 ) {
-    let main = Rect::from_min_size(area.left_top(), vec2(area.width(), area.height() * 0.54));
+    let main = Rect::from_min_size(area.left_top(), vec2(area.width(), area.height() * 0.40));
     card(ui, main, "AMPLITUDE ENVELOPE", ink);
     let plot = main.shrink2(vec2(12.0, 27.0));
     ui.painter().rect_filled(plot, 4.0, TRACK);
@@ -721,7 +724,43 @@ fn envelope_page(
         );
     }
 
-    let filter_top = controls_top + 58.0;
+    let pitch_top = controls_top + 56.0;
+    let pitch = Rect::from_min_size(
+        pos2(area.left(), pitch_top),
+        vec2(area.width(), 84.0),
+    );
+    card(ui, pitch, "PITCH ENVELOPE · BIPOLAR SEMITONE MODULATION", ink);
+    let pitch_gap = 6.0;
+    let pitch_width = (area.width() - pitch_gap * 4.0) / 5.0;
+    for (i, (param, label)) in [
+        (71, "P-ATTACK"),
+        (72, "P-DECAY"),
+        (73, "P-SUSTAIN"),
+        (74, "P-RELEASE"),
+        (75, "P-AMOUNT"),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        slider(
+            ui,
+            id,
+            Rect::from_min_size(
+                pos2(
+                    pitch.left() + i as f32 * (pitch_width + pitch_gap),
+                    pitch.top() + 29.0,
+                ),
+                vec2(pitch_width, 49.0),
+            ),
+            module,
+            param,
+            label,
+            ink,
+            changed,
+        );
+    }
+
+    let filter_top = pitch.bottom() + 7.0;
     let filter_h = (area.bottom() - filter_top).max(48.0);
     let filter = Rect::from_min_size(
         area.left_bottom() - vec2(0.0, filter_h),

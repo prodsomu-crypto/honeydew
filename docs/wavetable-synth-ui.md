@@ -9,7 +9,7 @@ The editor is arranged as eight full-width pages rather than exposing the instru
 - **OSC:** three oscillator cards with waveform previews, enable/bypass, level, pan, pitch and table-position controls.
 - **TABLE:** oscillator selection, morph control, factory wave regions and a table import button. Imported single-cycle files are expanded into a 16-frame harmonic-scan bank, from a fundamental-only frame to the full source spectrum.
 - **FILTER:** visual response curve, cutoff, resonance, envelope amount, signed keyboard tracking, velocity tracking, low-pass / band-pass / high-pass modes and a separate notch switch.
-- **ENV:** plotted amplitude ADSR and independent filter-envelope controls.
+- **ENV:** plotted amplitude ADSR, an independent filter ADSR and a bipolar pitch ADSR with semitone depth.
 - **MOD:** two free-running or host-tempo-synced LFOs with seven beat divisions, shape, rate, depth and pitch/filter/pan destinations; FM, ring modulation and warp controls.
 - **VOICE:** visual unison spread, detune, stereo width, glide, adjustable 1–24 semitone pitch-bend range, poly/mono/legato and polyphony.
 - **MIX:** oscillator level bars, sub, noise, velocity response and master.

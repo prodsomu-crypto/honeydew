@@ -58,10 +58,7 @@ pub struct PotionEngine {
 }
 
 impl PotionEngine {
-    pub fn new(
-        sample_rate: f32,
-        tables: [Arc<Wavetable>; OSCILLATORS],
-    ) -> Self {
+    pub fn new(sample_rate: f32, tables: [Arc<Wavetable>; OSCILLATORS]) -> Self {
         Self {
             voices: vec![Voice::default(); MAX_VOICES].into_boxed_slice(),
             tables,
@@ -76,7 +73,10 @@ impl PotionEngine {
     }
 
     pub fn note_on(&mut self, note: u8, velocity: f32) {
-        let slot = self.voices.iter().position(|v| !v.active)
+        let slot = self
+            .voices
+            .iter()
+            .position(|v| !v.active)
             .or_else(|| self.voices.iter().position(|v| v.releasing))
             .unwrap_or(0);
         let voice = &mut self.voices[slot];
@@ -91,7 +91,11 @@ impl PotionEngine {
     }
 
     pub fn note_off(&mut self, note: u8) {
-        for voice in self.voices.iter_mut().filter(|v| v.active && v.note == note) {
+        for voice in self
+            .voices
+            .iter_mut()
+            .filter(|v| v.active && v.note == note)
+        {
             voice.releasing = true;
         }
     }

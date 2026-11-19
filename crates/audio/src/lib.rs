@@ -33,6 +33,7 @@ pub mod ogg_writer;
 pub mod pitcher;
 pub mod pitcher2;
 pub mod playback;
+pub mod potion;
 mod reverbs;
 pub mod sample;
 pub mod sample_edit;

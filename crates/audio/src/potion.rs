@@ -36,7 +36,7 @@ pub struct PotionParams {
     pub lfo_amount: [f32; 2],
     /// 0 = pitch, 1 = filter, 2 = pan.
     pub lfo_destination: [u8; 2],
-    /// 0 = sine, 1 = triangle, 2 = square.
+    /// 0 = sine, 1 = rising saw, 2 = triangle, 3 = falling saw, 4 = square.
     pub lfo_wave: [u8; 2],
     /// Tempo-locked LFOs follow the host beat while the transport is running.
     pub lfo_sync: [bool; 2],

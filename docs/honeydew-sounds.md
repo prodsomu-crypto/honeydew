@@ -16,6 +16,13 @@ The browser should feel native to Honeydew: search and filter in the app, auditi
 
 Before wiring the browser into the UI, inspect the current sample picker and project-file import path and reuse their established import behavior.
 
+## Current implementation status
+
+- Added `src/content/sounds.rs` with provider-neutral asset metadata, the six browser categories, CC0/CC-BY licence parsing, attribution formatting, and validation of provider metadata/HTTPS URLs.
+- Exposed the model as `crate::content::sounds`.
+- Added unit tests for licence eligibility, attribution, insecure URLs, and invalid duration metadata.
+- Not yet implemented: provider API client, search UI, preview transport, download/cache, and playlist import. The model is a foundation, not a usable browser yet.
+
 ## Phase 1 scope
 
 1. A dedicated **Honeydew Sounds** entry in the existing browser/navigation system.

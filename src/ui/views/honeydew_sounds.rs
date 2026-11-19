@@ -388,8 +388,8 @@ pub fn show(state: &mut State, ui: &mut egui::Ui, app: &mut AppCtx) -> Option<Na
         .open(&mut open)
         .collapsible(false)
         .resizable(false)
-        .default_pos(egui::pos2(screen.right() - width, screen.top()))
-        .default_size(egui::vec2(width, screen.height()))
+        .fixed_pos(egui::pos2(screen.right() - width, screen.top()))
+        .fixed_size(egui::vec2(width, screen.height()))
         .show(&ctx, |ui| {
             ui.horizontal_wrapped(|ui| {
                 ui.label(egui::RichText::new("Find sounds. Preview them. Bring them into your project.").strong());

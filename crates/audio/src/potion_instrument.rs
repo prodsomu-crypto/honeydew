@@ -16,11 +16,43 @@ pub struct PotionInstrument {
 impl PotionInstrument {
     /// Builds its factory sine table on the app thread, never in the audio callback.
     pub fn new(sample_rate: f32) -> Self {
-        let frame = (0..2048)
-            .map(|i| (std::f32::consts::TAU * i as f32 / 2048.0).sin())
-            .collect();
-        let table =
-            Arc::new(Wavetable::new(vec![frame]).expect("built-in Potion sine table is valid"));
+        let size = 2048usize;
+        let sine = (0..size)
+            .map(|i| (std::f32::consts::TAU * i as f32 / size as f32).sin())
+            .collect::<Vec<_>>();
+        let triangle = (0..size)
+            .map(|i| {
+                let phase = std::f32::consts::TAU * i as f32 / size as f32;
+                (0..32)
+                    .map(|h| {
+                        let n = (2 * h + 1) as f32;
+                        let sign = if h % 2 == 0 { 1.0 } else { -1.0 };
+                        sign * (phase * n).sin() / (n * n)
+                    })
+                    .sum::<f32>()
+                    * (8.0 / std::f32::consts::PI.powi(2))
+            })
+            .collect::<Vec<_>>();
+        let saw = (0..size)
+            .map(|i| {
+                let phase = std::f32::consts::TAU * i as f32 / size as f32;
+                (1..128).map(|h| (phase * h as f32).sin() / h as f32).sum::<f32>()
+                    * (2.0 / std::f32::consts::PI)
+            })
+            .collect::<Vec<_>>();
+        let square = (0..size)
+            .map(|i| {
+                let phase = std::f32::consts::TAU * i as f32 / size as f32;
+                (0..64)
+                    .map(|h| (phase * (2 * h + 1) as f32).sin() / (2 * h + 1) as f32)
+                    .sum::<f32>()
+                    * (4.0 / std::f32::consts::PI)
+            })
+            .collect::<Vec<_>>();
+        let table = Arc::new(
+            Wavetable::new(vec![sine, triangle, saw, square])
+                .expect("built-in Potion factory tables are valid"),
+        );
         Self {
             engine: PotionEngine::new(sample_rate, std::array::from_fn(|_| table.clone())),
             params: PotionParams::default(),
@@ -47,6 +79,8 @@ impl Instrument for PotionInstrument {
             16 => self.params.attack_seconds = Self::seconds(value, 8.0),
             17 => self.params.release_seconds = Self::seconds(value, 12.0),
             18 => self.params.master = value,
+            19 => self.params.filter_cutoff = value,
+            20 => self.params.sustain = value,
             _ => {}
         }
     }

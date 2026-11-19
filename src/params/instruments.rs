@@ -1116,13 +1116,13 @@ const POTION: &[P] = &[
     P::plain("Mod 1 Source", 0.0),    // 47
     P::plain("Mod 1 Target", 0.0),    // 48
     P::plain("Mod 1 Depth", 0.5),     // 49
-    P::plain("Mod 2 Source", 0.33),   // 50
+    P::plain("Mod 2 Source", 0.2),   // 50
     P::plain("Mod 2 Target", 0.2),    // 51
     P::plain("Mod 2 Depth", 0.5),     // 52
-    P::plain("Mod 3 Source", 0.67),   // 53
+    P::plain("Mod 3 Source", 0.4),   // 53
     P::plain("Mod 3 Target", 0.4),    // 54
     P::plain("Mod 3 Depth", 0.5),    // 55
-    P::plain("Mod 4 Source", 1.0),    // 56
+    P::plain("Mod 4 Source", 0.6),    // 56
     P::plain("Mod 4 Target", 0.6),    // 57
     P::plain("Mod 4 Depth", 0.5),    // 58
 ];

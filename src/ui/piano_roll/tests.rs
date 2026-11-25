@@ -4451,8 +4451,10 @@ mod grid {
             rects.iter().map(|r| r.1).collect::<Vec<_>>(),
             [
                 Color32::from_black_alpha(38),
-                RED.to_color32()
-                    .gamma_multiply(super::super::NOTE_SHADOW_DARKEN),
+                super::super::darken_color(
+                    RED.to_color32(),
+                    super::super::NOTE_SHADOW_DARKEN,
+                ),
                 RED.to_color32(),
             ]
         );
@@ -4466,7 +4468,7 @@ mod grid {
             paint_notes(p, g, (&events, &[false]), &[], None, (RED, None), cx);
         });
         let fill = RED.to_color32();
-        let shadow_fill = fill.gamma_multiply(super::super::NOTE_SHADOW_DARKEN);
+        let shadow_fill = super::super::darken_color(fill, super::super::NOTE_SHADOW_DARKEN);
         let shadow_index = shapes
             .iter()
             .position(|s| matches!(s, Shape::Rect(r) if r.fill == shadow_fill))

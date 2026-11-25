@@ -1486,8 +1486,7 @@ fn a_held_note_shows_live_in_the_playlist_and_the_open_piano_roll_as_the_take_th
     rig.click(REC);
     rig.click(PLAY);
     rig.press(E4);
-    let ink =
-        crate::theme::channel_color(rig.app.song.channels[2].hue, &crate::theme::theme_by_id(0));
+
     // The note as drawn: in the playlist, the 2 px bar on the synth's row (the third); in the roll, its cell.
     let drawn = |rig: &mut Rig, tick| {
         rig.at_tick(tick);

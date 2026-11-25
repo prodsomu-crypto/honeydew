@@ -1450,12 +1450,8 @@ fn a_moved_channel_or_a_new_song_leaves_no_phantom_held_note_for_the_next_take()
     assert_eq!(notes(&rig, 1), [Vec::new()]);
 }
 
-/// The rects the last frame filled inside `area` whose (rect, fill) `keep` takes, groups flattened.
-fn fills_in(
-    rig: &Rig,
-    area: egui::Rect,
-    keep: impl Fn(egui::Rect, egui::Color32) -> bool,
-) -> Vec<egui::Rect> {
+/// Filled rectangles from the last frame whose whole bounds lie inside `area`, with their colours.
+fn painted_rects_in(rig: &Rig, area: egui::Rect) -> Vec<(egui::Rect, egui::Color32)> {
     fn walk(shape: &egui::Shape, out: &mut Vec<(egui::Rect, egui::Color32)>) {
         match shape {
             egui::Shape::Rect(r) => out.push((r.rect, r.fill)),
@@ -1464,10 +1460,22 @@ fn fills_in(
         }
     }
     let mut all = Vec::new();
-    (rig.out.shapes.iter()).for_each(|s| walk(&s.shape, &mut all));
-    (all.into_iter())
-        .filter(|&(r, fill)| area.contains_rect(r) && keep(r, fill))
-        .map(|(r, _)| r)
+    rig.out.shapes.iter().for_each(|s| walk(&s.shape, &mut all));
+    all.into_iter()
+        .filter(|(rect, _)| area.contains_rect(*rect))
+        .collect()
+}
+
+/// The rects the last frame filled inside `area` whose (rect, fill) `keep` takes, groups flattened.
+fn fills_in(
+    rig: &Rig,
+    area: egui::Rect,
+    keep: impl Fn(egui::Rect, egui::Color32) -> bool,
+) -> Vec<egui::Rect> {
+    painted_rects_in(rig, area)
+        .into_iter()
+        .filter(|(rect, fill)| keep(*rect, *fill))
+        .map(|(rect, _)| rect)
         .collect()
 }
 
@@ -1497,8 +1505,28 @@ fn a_held_note_shows_live_in_the_playlist_and_the_open_piano_roll_as_the_take_th
             .read_response(egui::Id::new("piano_roll").with("grid"));
         let grid = grid.expect("the roll").rect;
         let bar = fills_in(rig, row, |r, _| r.height() == 2.0);
-        let cell: Vec<_> = fills_in(rig, grid, |r, _| r.height() > 10.0)
-            .into_iter()
+        // Each note body is drawn immediately above a same-size, darker rectangle as its underside shadow.
+        // Matching that pair identifies the note without depending on velocity or the grid/background fill.
+        let shapes = painted_rects_in(rig, grid);
+        let brightness = |color: egui::Color32| {
+            let [red, green, blue, _] = color.to_srgba_unmultiplied();
+            u16::from(red) + u16::from(green) + u16::from(blue)
+        };
+        let cell: Vec<_> = shapes
+            .iter()
+            .filter_map(|(body, body_fill)| {
+                shapes
+                    .iter()
+                    .any(|(shadow, shadow_fill)| {
+                        let offset = shadow.top() - body.top();
+                        (shadow.left() - body.left()).abs() < 1e-3
+                            && (shadow.width() - body.width()).abs() < 1e-3
+                            && (shadow.height() - body.height()).abs() < 1e-3
+                            && (0.5..=1.5).contains(&offset)
+                            && brightness(*shadow_fill) < brightness(*body_fill)
+                    })
+                    .then_some(*body)
+            })
             .min_by(|a, b| a.top().total_cmp(&b.top()))
             .into_iter()
             .collect();

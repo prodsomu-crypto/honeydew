@@ -2721,7 +2721,6 @@ fn slice_items() -> Vec<PopupItem<MoreOp>> {
     heads.into_iter().chain(sizes).chain(parts).collect()
 }
 
-
 /// What the grid's key rows show (grid background steps 2, 4 and 6).
 pub(crate) struct Rows {
     /// Step 2: `moduleFill`, the key being in the project scale (Chromatic reads as C major) and in the key range of an

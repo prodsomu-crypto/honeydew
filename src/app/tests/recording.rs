@@ -1498,9 +1498,11 @@ fn a_held_note_shows_live_in_the_playlist_and_the_open_piano_roll_as_the_take_th
             .read_response(egui::Id::new("piano_roll").with("grid"));
         let grid = grid.expect("the roll").rect;
         let bar = fills_in(rig, row, |r, _| r.height() == 2.0);
-        let cell = fills_in(rig, grid, |r, fill| {
-            fill == ink.to_color32() && r.height() > 10.0
-        });
+        let cell = fills_in(rig, grid, |r, _| r.height() > 10.0)
+            .into_iter()
+            .min_by(|a, b| a.top().total_cmp(&b.top()))
+            .into_iter()
+            .collect();
         (bar, cell)
     };
     let (bar, cell) = drawn(&mut rig, 2 * BEAT);

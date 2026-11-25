@@ -2826,6 +2826,14 @@ fn blend_color(from: Color32, to: Color32, amount: f32) -> Color32 {
     )
 }
 
+/// Darken RGB while keeping the source alpha intact.
+fn darken_color(color: Color32, amount: f32) -> Color32 {
+    let [r, g, b, a] = color.to_srgba_unmultiplied();
+    let amount = amount.clamp(0.0, 1.0);
+    let channel = |value: u8| (f32::from(value) * (1.0 - amount)).round() as u8;
+    Color32::from_rgba_unmultiplied(channel(r), channel(g), channel(b), a)
+}
+
 /// Lighter at low velocity, darker at high velocity, with the channel colour as the default-velocity midpoint.
 fn velocity_color(base: Color32, velocity: u8) -> Color32 {
     let velocity = f32::from(velocity) / 255.0;
@@ -2835,7 +2843,7 @@ fn velocity_color(base: Color32, velocity: u8) -> Color32 {
         blend_color(base, Color32::WHITE, light)
     } else {
         let loud = (velocity - default) / (1.0 - default).max(f32::EPSILON);
-        base.gamma_multiply(1.0 - LOUD_NOTE_DARKEN * loud)
+        darken_color(base, LOUD_NOTE_DARKEN * loud)
     }
 }
 
@@ -2846,7 +2854,7 @@ fn paint_note_body(painter: &egui::Painter, rect: Rect, fill: Color32, px: f32) 
     painter.rect_filled(
         rect.translate(vec2(0.0, px)),
         rounding,
-        fill.gamma_multiply(NOTE_SHADOW_DARKEN),
+        darken_color(fill, NOTE_SHADOW_DARKEN),
     );
     painter.rect_filled(rect, rounding, fill);
 }

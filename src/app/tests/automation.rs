@@ -543,7 +543,11 @@ fn modulate_recent_control_sets_a_modulators_target_in_one_undo_step() {
     // The Modulator's own controls are signal-source settings, not a replacement target.
     let attack = rig.text_rect("Attack").center();
     rig.touch_at(attack);
-    assert_eq!(rig.recent(), Some((2, DRIVE)), "Attack must not steal the EQ target");
+    assert_eq!(
+        rig.recent(),
+        Some((2, DRIVE)),
+        "Attack must not steal the EQ target"
+    );
     let undos = rig.undos();
     card_item(&mut rig, "Modulator", "Modulate recent control");
     rig.frame(vec![]);

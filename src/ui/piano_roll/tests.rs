@@ -4451,7 +4451,8 @@ mod grid {
             rects.iter().map(|r| r.1).collect::<Vec<_>>(),
             [
                 Color32::from_black_alpha(38),
-                RED.to_color32().gamma_multiply(super::super::NOTE_SHADOW_DARKEN),
+                RED.to_color32()
+                    .gamma_multiply(super::super::NOTE_SHADOW_DARKEN),
                 RED.to_color32(),
             ]
         );
@@ -4475,8 +4476,7 @@ mod grid {
             .position(|s| matches!(s, Shape::Rect(r) if r.fill == fill))
             .expect("the note body");
         assert!(shadow_index < body_index, "the shadow is behind the note");
-        let (Shape::Rect(shadow), Shape::Rect(body)) =
-            (&shapes[shadow_index], &shapes[body_index])
+        let (Shape::Rect(shadow), Shape::Rect(body)) = (&shapes[shadow_index], &shapes[body_index])
         else {
             unreachable!()
         };

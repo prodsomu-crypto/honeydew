@@ -2721,11 +2721,6 @@ fn slice_items() -> Vec<PopupItem<MoreOp>> {
     heads.into_iter().chain(sizes).chain(parts).collect()
 }
 
-/// `a` moved `t` of the way toward `b`.
-fn mix(a: Rgba, b: Rgba, t: f32) -> Color32 {
-    let ch = |x: f32, y: f32| x + (y - x) * t;
-    Rgba::rgb(ch(a.r, b.r), ch(a.g, b.g), ch(a.b, b.b)).to_color32()
-}
 
 /// What the grid's key rows show (grid background steps 2, 4 and 6).
 pub(crate) struct Rows {

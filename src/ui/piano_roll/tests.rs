@@ -4451,10 +4451,7 @@ mod grid {
             rects.iter().map(|r| r.1).collect::<Vec<_>>(),
             [
                 Color32::from_black_alpha(38),
-                super::super::darken_color(
-                    RED.to_color32(),
-                    super::super::NOTE_SHADOW_DARKEN,
-                ),
+                super::super::darken_color(RED.to_color32(), super::super::NOTE_SHADOW_DARKEN,),
                 RED.to_color32(),
             ]
         );

@@ -1,4 +1,4 @@
-use eframe::egui::{Pos2, Rect, pos2};
+use eframe::egui::{Color32, Pos2, Rect, pos2};
 
 use super::notes::*;
 use crate::song::{ChannelKind, Event, Lane, LaneKind, PPQ, Song, TimeSig};
@@ -31,6 +31,22 @@ fn spans(events: &[Event]) -> Vec<(u32, f64, u8)> {
         .collect()
 }
 
+#[test]
+fn note_velocity_tints_keep_the_track_color_as_the_default_midpoint() {
+    let base = Color32::from_rgb(48, 112, 196);
+    let quiet = super::velocity_color(base, 0);
+    let middle = super::velocity_color(base, 102);
+    let default = super::velocity_color(base, Event::DEFAULT_VELOCITY);
+    let loud = super::velocity_color(base, u8::MAX);
+    let brightness = |c: Color32| {
+        let [r, g, b, _] = c.to_srgba_unmultiplied();
+        u16::from(r) + u16::from(g) + u16::from(b)
+    };
+    assert_eq!(default, base, "default velocity keeps the track colour");
+    assert!(brightness(quiet) > brightness(middle));
+    assert!(brightness(middle) > brightness(default));
+    assert!(brightness(default) > brightness(loud));
+}
 // ---- snap ----
 
 #[test]
@@ -4252,7 +4268,7 @@ mod component {
 // ---- the grid background ----
 
 mod grid {
-    use eframe::egui::{Color32, Context, LayerId, RawInput, Rect, Shape, pos2};
+    use eframe::egui::{Color32, Context, LayerId, RawInput, Rect, Shape, pos2, vec2};
 
     use super::n;
     use crate::metrics::{DEFAULT_UI_SCALE, Metrics};
@@ -4267,10 +4283,10 @@ mod grid {
 
     /// What `paint` paints at ppp `ppp` on a grid from (1.5 U, 1.5 U) to (1170, 349), 2 U a beat and 0.5 U a row from
     /// tick 0 at its left edge, key 72's row on top: its filled rects, the grid, U and the geometry.
-    fn painted(
+    fn painted_shapes(
         ppp: f32,
         paint: &dyn Fn(&eframe::egui::Painter, Rect, &Geom, &UiCtx),
-    ) -> (Vec<(Rect, Color32)>, Rect, f32, Geom) {
+    ) -> Vec<Shape> {
         let m = Metrics::from_pixels_per_point(ppp, DEFAULT_UI_SCALE);
         let u = m.u(1.0);
         let theme = theme_by_id(0);
@@ -4288,8 +4304,25 @@ mod grid {
         let out = ctx.run(RawInput::default(), |ctx| {
             paint(&ctx.layer_painter(LayerId::background()), grid, &g, &cx);
         });
-        let rects = (out.shapes.into_iter())
-            .filter_map(|s| match s.shape {
+        out.shapes.into_iter().map(|s| s.shape).collect()
+    }
+
+    /// The filled rectangles of a paint pass, together with its grid and geometry.
+    fn painted(
+        ppp: f32,
+        paint: &dyn Fn(&eframe::egui::Painter, Rect, &Geom, &UiCtx),
+    ) -> (Vec<(Rect, Color32)>, Rect, f32, Geom) {
+        let m = Metrics::from_pixels_per_point(ppp, DEFAULT_UI_SCALE);
+        let u = m.u(1.0);
+        let grid = Rect::from_min_max(pos2(1.5 * u, 1.5 * u), pos2(1170.0, 349.0));
+        let g = Geom {
+            origin: pos2(grid.left(), grid.top() - 55.0 * 0.5 * u),
+            beat_w: 2.0 * u,
+            row_h: 0.5 * u,
+        };
+        let rects = painted_shapes(ppp, paint)
+            .into_iter()
+            .filter_map(|shape| match shape {
                 Shape::Rect(r) => Some((r.rect, r.fill)),
                 _ => None,
             })
@@ -4416,11 +4449,41 @@ mod grid {
         });
         assert_eq!(
             rects.iter().map(|r| r.1).collect::<Vec<_>>(),
-            [Color32::from_black_alpha(38), RED.to_color32()]
+            [
+                Color32::from_black_alpha(38),
+                RED.to_color32().gamma_multiply(super::super::NOTE_SHADOW_DARKEN),
+                RED.to_color32(),
+            ]
         );
         assert_eq!(rects[0].0, past);
     }
 
+    #[test]
+    fn notes_are_rounded_and_cast_a_subtle_shadow_below_the_body() {
+        let events = [n(0, 128.0, 60)];
+        let shapes = painted_shapes(1.0, &|p, _, g, cx| {
+            paint_notes(p, g, (&events, &[false]), &[], None, (RED, None), cx);
+        });
+        let fill = RED.to_color32();
+        let shadow_fill = fill.gamma_multiply(super::super::NOTE_SHADOW_DARKEN);
+        let shadow_index = shapes
+            .iter()
+            .position(|s| matches!(s, Shape::Rect(r) if r.fill == shadow_fill))
+            .expect("the note shadow");
+        let body_index = shapes
+            .iter()
+            .position(|s| matches!(s, Shape::Rect(r) if r.fill == fill))
+            .expect("the note body");
+        assert!(shadow_index < body_index, "the shadow is behind the note");
+        let (Shape::Rect(shadow), Shape::Rect(body)) =
+            (&shapes[shadow_index], &shapes[body_index])
+        else {
+            unreachable!()
+        };
+        assert_ne!(body.corner_radius, eframe::egui::CornerRadius::ZERO);
+        assert_ne!(shadow.corner_radius, eframe::egui::CornerRadius::ZERO);
+        assert_eq!(shadow.rect, body.rect.translate(vec2(0.0, 1.0)));
+    }
     #[test]
     fn light_rows_are_the_project_scale_chromatic_as_c_major_inside_the_channels_instrument_ranges()
     {

@@ -5,9 +5,10 @@
 //! `Delete automation?` question a card's `Delete` asks for a module that lanes target, as do
 //! `Clear Rack`, a `Replace` and a rack preset's load, held back until the answer.
 //!
-//! The recent control is the channel (by id, which no move changes) and the [`AutomationTarget`] of the last control
-//! bound to a parameter that was pressed: a rack card's module or common param, a mixer strip's (instance 0) or a drum
-//! slot strip's (instance −slot id). It is held in memory and cleared with a new song.
+//! The recent control is the channel (by id, which no move changes) and the [`AutomationTarget`] of the last eligible
+//! bound control that was pressed: a rack card's module or common param, a mixer strip's (instance 0) or a drum slot
+//! strip's (instance −slot id). Modulators and controller plugins are signal sources, not targets, so their plain
+//! presses do not steal the target; their parameter-menu picks still work. It is held in memory and cleared with a new song.
 //!
 //! While the song plays, the controls show what the automation and the Modulators set
 //! ([`HoneydewApp::show_automation`]).
@@ -28,6 +29,16 @@ use crate::ui::views::{Nav, Overlay, SongEdit, View, preset_picker};
 
 /// The tag of the `Delete automation?` message.
 pub(crate) const DELETE_AUTOMATION_TAG: &str = "delete automation";
+
+/// Whether this module generates a modulation signal for another module's parameter.
+fn is_modulation_source(module: &crate::song::ModuleInstance) -> bool {
+    module.type_id == honeydew_audio::modulator::MODULATOR
+        || module
+            .file
+            .plugin
+            .as_deref()
+            .is_some_and(crate::plugins::builtin::controller)
+}
 
 /// What `Delete automation?` waits on: a card's `Delete` of the module with this instance id, or a held edit with its
 /// channel as it was when asked.
@@ -279,8 +290,20 @@ impl HoneydewApp {
     /// first), for [`Self::automation`] once the frame's edit is in.
     pub(super) fn take_touches(&mut self) -> Option<CtrlAction> {
         let slots = &mut self.slots;
+        // A Modulator or built-in controller is a signal source. Turning its Attack, Release, or other controls
+        // must not replace the EQ (or other song parameter) it is meant to modulate. A parameter-menu pick is an
+        // explicit action, so retain it even on a source module (eg `Add automation track`).
+        let rack_touch = slots.rack.touch.take().filter(|(channel, touch)| {
+            touch.pick.is_some()
+                || !self
+                    .song
+                    .channels
+                    .get(*channel)
+                    .and_then(|ch| ch.rack.get(touch.target.instance_id))
+                    .is_some_and(is_modulation_source)
+        });
         let touches = [
-            slots.rack.touch.take(),
+            rack_touch,
             slots.mixer.touch.take(),
             slots.drum_editor.touch.take(),
             self.main_screen.touch.take(),

@@ -582,12 +582,18 @@ fn instrument_automation(
 /// automation interpolation as an ordinary automation lane.
 fn midi_cc_clip(clip: &Clip, curve: &crate::song::MidiCc) -> Clip {
     let mut source = clip.clone();
-    source.events = curve.points.iter().map(|point| Event::Automation {
-        pos: point.tick,
-        value: f32::from(point.value) / 65535.0,
-        control: true,
-    }).collect();
-    source.file.shapes = curve.points.iter()
+    source.events = curve
+        .points
+        .iter()
+        .map(|point| Event::Automation {
+            pos: point.tick,
+            value: f32::from(point.value) / 65535.0,
+            control: true,
+        })
+        .collect();
+    source.file.shapes = curve
+        .points
+        .iter()
         .map(|point| (point.tick, point.shape))
         .collect();
     source
@@ -650,10 +656,12 @@ pub(super) fn plays(song: &Song) -> Result<f64, EngineError> {
                 LaneKind::Notes => {
                     let mut count = clip.events.len();
                     for curve in &clip.file.midi_cc {
-                        count += automation_clip(&midi_cc_clip(clip, curve), false)?.events.len();
+                        count += automation_clip(&midi_cc_clip(clip, curve), false)?
+                            .events
+                            .len();
                     }
                     count
-                },
+                }
                 _ => clip.events.len(),
             };
             // It runs before `song_end_beat` validates the clips: a negative length adds nothing, a NaN one is over.

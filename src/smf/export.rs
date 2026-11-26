@@ -113,15 +113,20 @@ pub fn smf_with(
             let source: Box<dyn Iterator<Item = (f64, &Event)>> = match burned {
                 Some((events, written)) => {
                     if std::mem::replace(written, true)
-                        || (events.is_empty() && lane.clips.iter().all(|clip| clip.file.midi_cc.is_empty()))
+                        || (events.is_empty()
+                            && lane.clips.iter().all(|clip| clip.file.midi_cc.is_empty()))
                     {
                         continue;
                     }
                     Box::new(events.iter().map(|e| (f64::from(e.pos()), e)))
                 }
-                None if lane.clips.iter().all(|clip| {
-                    clip.events.is_empty() && clip.file.midi_cc.is_empty()
-                }) => continue,
+                None if lane
+                    .clips
+                    .iter()
+                    .all(|clip| clip.events.is_empty() && clip.file.midi_cc.is_empty()) =>
+                {
+                    continue;
+                }
                 None => Box::new(lane.clips.iter().flat_map(plays)),
             };
             // (tick, not a note-off, message): note-offs go first at a tick, then the clips' order.
@@ -139,12 +144,18 @@ pub fn smf_with(
                 for clip in &lane.clips {
                     for curve in &clip.file.midi_cc {
                         let mut automation = clip.clone();
-                        automation.events = curve.points.iter().map(|point| Event::Automation {
-                            pos: point.tick,
-                            value: f32::from(point.value) / 65535.0,
-                            control: true,
-                        }).collect();
-                        automation.file.shapes = curve.points.iter()
+                        automation.events = curve
+                            .points
+                            .iter()
+                            .map(|point| Event::Automation {
+                                pos: point.tick,
+                                value: f32::from(point.value) / 65535.0,
+                                control: true,
+                            })
+                            .collect();
+                        automation.file.shapes = curve
+                            .points
+                            .iter()
                             .map(|point| (point.tick, point.shape))
                             .collect();
                         for (t, event) in plays(&automation) {
@@ -152,7 +163,12 @@ pub fn smf_with(
                                 break;
                             }
                             let msgs = messages(
-                                Write::Cc(curve.cc), ch, step, t, event, channel.drum_kit.as_ref(),
+                                Write::Cc(curve.cc),
+                                ch,
+                                step,
+                                t,
+                                event,
+                                channel.drum_kit.as_ref(),
                             );
                             budget -= msgs.len();
                             events.extend(msgs);

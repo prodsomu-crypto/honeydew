@@ -167,7 +167,11 @@ impl SongAudioBridge {
                 }
             }
             // Pattern-attached CC curves share the note clip's start, loop, offset and mute state.
-            for lane in channel.lanes.iter().filter(|lane| lane.kind == LaneKind::Notes) {
+            for lane in channel
+                .lanes
+                .iter()
+                .filter(|lane| lane.kind == LaneKind::Notes)
+            {
                 for clip in playing_clips(lane) {
                     let visible = validate_clip(clip)?;
                     let clip_start = u64::from(clip.start_tick);
@@ -183,7 +187,8 @@ impl SongAudioBridge {
                             instance_id: 0,
                             param: 7 + i32::from(curve.cc),
                         };
-                        let Some(target) = self.audio_target(song, channel_index, song_target) else {
+                        let Some(target) = self.audio_target(song, channel_index, song_target)
+                        else {
                             continue;
                         };
                         if seen.insert(target) {
@@ -283,7 +288,11 @@ impl SongAudioBridge {
                     }
                 }
             }
-            for lane in channel.lanes.iter().filter(|lane| lane.kind == LaneKind::Notes) {
+            for lane in channel
+                .lanes
+                .iter()
+                .filter(|lane| lane.kind == LaneKind::Notes)
+            {
                 for clip in playing_clips(lane) {
                     validate_clip(clip)?;
                     for curve in &clip.file.midi_cc {
@@ -291,20 +300,31 @@ impl SongAudioBridge {
                             instance_id: 0,
                             param: 7 + i32::from(curve.cc),
                         };
-                        let Some(target) = self.audio_target(song, channel_index, song_target) else {
+                        let Some(target) = self.audio_target(song, channel_index, song_target)
+                        else {
                             continue;
                         };
                         let source = midi_cc_clip(clip, curve);
                         let playback = playback_clip(&source, false)?;
-                        for (tick, event) in playback.events_in_song_range(start_tick, end_tick as u64) {
+                        for (tick, event) in
+                            playback.events_in_song_range(start_tick, end_tick as u64)
+                        {
                             if let Event::Automation { value, .. } = event {
                                 valid_value(*value)?;
                                 let frame = ((tick as f64 / f64::from(PPQ) - context.start_beat)
-                                    * 60.0 * sample_rate / tempo).ceil();
+                                    * 60.0
+                                    * sample_rate
+                                    / tempo)
+                                    .ceil();
                                 if frame >= 0.0 && frame < frames as f64 {
-                                    scheduled.push((tick, AutomationChange {
-                                        frame: frame as usize, target, value: *value,
-                                    }));
+                                    scheduled.push((
+                                        tick,
+                                        AutomationChange {
+                                            frame: frame as usize,
+                                            target,
+                                            value: *value,
+                                        },
+                                    ));
                                 }
                             }
                         }
@@ -441,12 +461,18 @@ impl SongAudioBridge {
 /// Adapts one clip-local CC curve to the existing automation playback law without moving it off its note clip.
 fn midi_cc_clip(clip: &Clip, curve: &crate::song::MidiCc) -> Clip {
     let mut source = clip.clone();
-    source.events = curve.points.iter().map(|point| Event::Automation {
-        pos: point.tick,
-        value: f32::from(point.value) / 65535.0,
-        control: true,
-    }).collect();
-    source.file.shapes = curve.points.iter()
+    source.events = curve
+        .points
+        .iter()
+        .map(|point| Event::Automation {
+            pos: point.tick,
+            value: f32::from(point.value) / 65535.0,
+            control: true,
+        })
+        .collect();
+    source.file.shapes = curve
+        .points
+        .iter()
         .map(|point| (point.tick, point.shape))
         .collect();
     source

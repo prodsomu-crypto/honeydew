@@ -99,11 +99,20 @@ pub enum Prop {
 
 /// The piano roll's pinned items. The final selector opens a menu for every other MIDI CC.
 pub const ROLL_PROPS: [Prop; 10] = [
-    Prop::Velocity, Prop::Pan, Prop::MidiCc(1), Prop::MidiCc(7), Prop::MidiCc(10),
-    Prop::MidiCc(11), Prop::MidiCc(64), Prop::MidiCc(74), Prop::MidiCc(91), Prop::MidiCc(93),
+    Prop::Velocity,
+    Prop::Pan,
+    Prop::MidiCc(1),
+    Prop::MidiCc(7),
+    Prop::MidiCc(10),
+    Prop::MidiCc(11),
+    Prop::MidiCc(64),
+    Prop::MidiCc(74),
+    Prop::MidiCc(91),
+    Prop::MidiCc(93),
 ];
 pub const ROLL_LABELS: [&str; 11] = [
-    "Vel", "Pan", "Mod", "Vol", "CC Pan", "Expr", "Sustain", "Bright", "Reverb", "Chorus", "More CC",
+    "Vel", "Pan", "Mod", "Vol", "CC Pan", "Expr", "Sustain", "Bright", "Reverb", "Chorus",
+    "More CC",
 ];
 /// The drum editor's items; [`drum_items`] says how many show.
 pub const DRUM_PROPS: [Prop; 4] = [Prop::Velocity, Prop::Pan, Prop::Pitch, Prop::Repeat];
@@ -579,8 +588,14 @@ pub fn frame(
 /// Like frame, also returning whether the final tab was clicked (used for the CC picker).
 #[allow(clippy::too_many_arguments)]
 pub fn frame_with_menu(
-    ui: &mut Ui, cx: &UiCtx, id: Id, strip: Rect, list_w: f32, labels: &[&str],
-    color: Color32, item: &mut usize,
+    ui: &mut Ui,
+    cx: &UiCtx,
+    id: Id,
+    strip: Rect,
+    list_w: f32,
+    labels: &[&str],
+    color: Color32,
+    item: &mut usize,
 ) -> (Rect, bool) {
     let m = cx.m;
     let q = crate::ui::timeline::q(m);
@@ -596,14 +611,26 @@ pub fn frame_with_menu(
 
 #[allow(clippy::too_many_arguments)]
 fn frame_tabs(
-    ui: &mut Ui, cx: &UiCtx, id: Id, content: Rect, list_w: f32, labels: &[&str],
-    color: Color32, item: &mut usize,
+    ui: &mut Ui,
+    cx: &UiCtx,
+    id: Id,
+    content: Rect,
+    list_w: f32,
+    labels: &[&str],
+    color: Color32,
+    item: &mut usize,
 ) -> (Rect, bool) {
     let list = content.with_max_x(content.left() + list_w);
     *item = (*item).min(labels.len().saturating_sub(1));
-    let tabs = ItemList { tabs: true, ..ItemList::new(id, list, labels, Bar::Right, color) };
+    let tabs = ItemList {
+        tabs: true,
+        ..ItemList::new(id, list, labels, Bar::Right, color)
+    };
     let response = item_list_index(ui, cx, &tabs, item);
-    (content, response.clicked() && *item == labels.len().saturating_sub(1))
+    (
+        content,
+        response.clicked() && *item == labels.len().saturating_sub(1),
+    )
 }
 
 /// The lane strip `strip` below its gap, min(strip height, 4) px: the rows of the list, the drum editor's spacer and the value area.

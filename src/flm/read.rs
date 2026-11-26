@@ -1177,22 +1177,32 @@ fn midi_cc_curves(payload: &[u8]) -> Option<Vec<crate::song::MidiCc>> {
         *at = end;
         Some(u32::from_le_bytes(bytes))
     };
-    if read_u16(&mut at)? != 1 { return None; }
+    if read_u16(&mut at)? != 1 {
+        return None;
+    }
     let count = usize::from(read_u16(&mut at)?);
-    if count > 128 { return None; }
+    if count > 128 {
+        return None;
+    }
     let mut curves = Vec::with_capacity(count);
     for _ in 0..count {
         let cc = read_u8(&mut at)?;
         let point_count = usize::try_from(read_u32(&mut at)?).ok()?;
         let bytes = point_count.checked_mul(8)?;
-        if at.checked_add(bytes)? > payload.len() { return None; }
+        if at.checked_add(bytes)? > payload.len() {
+            return None;
+        }
         let mut points = Vec::with_capacity(point_count);
         for _ in 0..point_count {
             let tick = read_u32(&mut at)?;
             let value = read_u16(&mut at)?;
             let kind = *ShapeKind::ALL.get(usize::from(read_u8(&mut at)?))?;
             let tension = read_u8(&mut at)?.min(100);
-            points.push(Point { tick, value, shape: Shape { kind, tension } });
+            points.push(Point {
+                tick,
+                value,
+                shape: Shape { kind, tension },
+            });
         }
         points.sort_by_key(|point| point.tick);
         curves.push(crate::song::MidiCc { cc, points });

@@ -815,33 +815,20 @@ fn controllers() -> Vec<u8> {
 
 #[test]
 fn controller_lanes() {
-    // Split on: GM names, `Controller %d` for 32–63, `MIDI CC #%d` otherwise; CC 127 is dropped.
+    // MIDI CCs are clip-local curves; pitch wheel remains a channel automation lane.
     let song = open(&controllers());
     let c = &song.channels[1];
+    assert_eq!(autos(c), [(4, "Pitch Wheel")]);
+    let value = |v: u64| (v * 7874 * 65534 / 1_000_000) as u16;
     assert_eq!(
-        autos(c),
-        [
-            (4, "Pitch Wheel"),
-            (7, "Bank Select"),
-            (8, "Modulation Wheel"),
-            (14, "Volume"),
-            (15, "Balance"),
-            (17, "Pan Position"),
-            (18, "Expression"),
-            (39, "Controller 1"),
-            (70, "Controller 32"),
-            (71, "Sustain Pedal"),
-            (81, "MIDI CC #74"),
-            (128, "All Controllers Off"),
-        ]
+        midi_cc_pts(&c.lanes[0], 7),
+        [(0, 0), (128, value(64)), (256, value(127))]
     );
-    // Stepped: before each new point the previous value repeats at its tick. u16 = min(trunc(v·0.007874·65534),
-    // 65534).
+    assert_eq!(midi_cc_pts(&c.lanes[0], 10), [(0, value(5))]);
     assert_eq!(
-        pts(lane(c, "Volume")),
-        [(0, 0), (128, 0), (128, 33024), (256, 33024), (256, 65533)]
+        midi_cc_numbers(&c.lanes[0]),
+        [0, 1, 8, 10, 11, 32, 63, 64, 74, 121]
     );
-    assert_eq!(pts(lane(c, "Pan Position")), [(0, 2580)]);
     // CC 10 never becomes note pan (`notes` checks pan 127).
     assert_eq!(notes(&c.lanes[0]).len(), 1);
 
@@ -860,10 +847,12 @@ fn controller_lanes() {
         crate::content::factory(),
     )
     .unwrap();
-    let params: Vec<i32> = autos(&song.channels[2]).iter().map(|a| a.0).collect();
-    assert_eq!(params, [4, 8, 14, 15, 17, 71]);
+    assert_eq!(
+        midi_cc_numbers(&song.channels[2].lanes[0]),
+        [1, 7, 8, 10, 64]
+    );
 
-    // Import automation off: no CC lane; the pitch wheel still comes.
+    // Import automation off: no MIDI CC curves; the pitch wheel still comes.
     let mut song = keys_song();
     let opts = ImportOpts {
         automation: false,
@@ -879,18 +868,17 @@ fn controller_lanes() {
     )
     .unwrap();
     assert_eq!(autos(&song.channels[2]), [(4, "Pitch Wheel")]);
+    assert!(midi_cc_numbers(&song.channels[2].lanes[0]).is_empty());
 
-    // Split off: `CHN #c : MIDI CC #n` and `CHN #c : Pitch Wheel`, on the current channel.
+    // Split off: CCs are on the imported `Ctl` pattern; pitch wheel remains a separate lane.
     let song = into_keys(&controllers(), ImportOpts::ONE_CHANNEL);
-    let a = autos(&song.channels[1]);
-    assert_eq!(a.len(), 12);
-    assert!(a.contains(&(4, "CHN #2 : Pitch Wheel")));
-    assert!(a.contains(&(14, "CHN #2 : MIDI CC #7")));
-    assert!(a.contains(&(39, "CHN #2 : MIDI CC #32")));
-    assert!(a.contains(&(7, "CHN #2 : MIDI CC #0")));
-}
-
-#[test]
+    let keys = &song.channels[1];
+    assert_eq!(autos(keys), [(4, "CHN #2 : Pitch Wheel")]);
+    assert_eq!(
+        midi_cc_numbers(lane(keys, "Ctl")),
+        [0, 1, 8, 10, 11, 32, 63, 64, 74, 121]
+    );
+}#[test]
 fn controller_lanes_are_reused_by_channel_and_midi_channel() {
     let bytes = smf(
         128,

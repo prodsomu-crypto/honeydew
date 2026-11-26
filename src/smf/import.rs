@@ -576,7 +576,6 @@ impl State<'_> {
                         continue;
                     }
                 }
-            }
             let target = AutomationTarget {
                 instance_id: 0,
                 param: auto.param,

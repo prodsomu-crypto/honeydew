@@ -27,7 +27,7 @@ jobs:
           key: android-arm
       - name: Format Rust source
         run: |
-          cargo fmt --all
+          cargo fmt
           if ! git diff --quiet; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

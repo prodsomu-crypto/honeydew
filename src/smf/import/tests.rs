@@ -120,15 +120,28 @@ fn pts(lane: &Lane) -> Vec<(u32, u16)> {
 fn midi_cc_pts(lane: &Lane, cc: u8) -> Vec<(u32, u16)> {
     assert_eq!(lane.clips.len(), 1, "{}", lane.label);
     let clip = &lane.clips[0];
-    let curve = clip.file.midi_cc.iter().find(|curve| curve.cc == cc)
+    let curve = clip
+        .file
+        .midi_cc
+        .iter()
+        .find(|curve| curve.cc == cc)
         .unwrap_or_else(|| panic!("no MIDI CC {cc} in {}", lane.label));
-    curve.points.iter().map(|point| (clip.start_tick + point.tick, point.value)).collect()
+    curve
+        .points
+        .iter()
+        .map(|point| (clip.start_tick + point.tick, point.value))
+        .collect()
 }
 
 /// The sorted controller numbers on a pattern's clip.
 fn midi_cc_numbers(lane: &Lane) -> Vec<u8> {
     assert_eq!(lane.clips.len(), 1, "{}", lane.label);
-    let mut numbers: Vec<u8> = lane.clips[0].file.midi_cc.iter().map(|curve| curve.cc).collect();
+    let mut numbers: Vec<u8> = lane.clips[0]
+        .file
+        .midi_cc
+        .iter()
+        .map(|curve| curve.cc)
+        .collect();
     numbers.sort_unstable();
     numbers
 }
@@ -597,10 +610,7 @@ fn each_track_starts_a_new_lane() {
     );
     let song = open(&bytes);
     let a = &song.channels[1];
-    assert_eq!(
-        labels(a),
-        [(LaneKind::Notes, "A"), (LaneKind::Notes, "B")]
-    );
+    assert_eq!(labels(a), [(LaneKind::Notes, "A"), (LaneKind::Notes, "B")]);
     assert_eq!(notes(&a.lanes[0]), [(128, 60, 128, 1.0)]);
     assert_eq!(notes(&a.lanes[1]), [(0, 61, 128, 1.0)]);
     assert_eq!(midi_cc_pts(&a.lanes[0], 1), [(0, value(10))]);
@@ -621,7 +631,8 @@ fn each_track_starts_a_new_lane() {
         [(0, 60, 128, 1.0), (128, 61, 128, 1.0)]
     );
     assert_eq!(labels(&song.channels[2]), [(LaneKind::Notes, "B")]);
-}#[test]
+}
+#[test]
 fn clips_start_on_four_beats_and_grow_over_their_notes() {
     let clip = |tracks| open(&smf(128, tracks)).channels[1].lanes[0].clips[0].clone();
     // Start floor(5 / 4)·4 = 4; the last note starts 9.5 beats past it and lasts a beat, which the clip covers.
@@ -878,7 +889,8 @@ fn controller_lanes() {
         midi_cc_numbers(lane(keys, "Ctl")),
         [0, 1, 8, 10, 11, 32, 63, 64, 74, 121]
     );
-}#[test]
+}
+#[test]
 fn controller_lanes_are_reused_by_channel_and_midi_channel() {
     let bytes = smf(
         128,
@@ -900,8 +912,14 @@ fn controller_lanes_are_reused_by_channel_and_midi_channel() {
             (LaneKind::Notes, "B"),
         ]
     );
-    assert_eq!(midi_cc_pts(lane(keys, "A"), 7), [(0, value(10)), (0, value(20))]);
-    assert_eq!(midi_cc_pts(lane(keys, "B"), 7), [(128, value(30)), (128, value(40))]);
+    assert_eq!(
+        midi_cc_pts(lane(keys, "A"), 7),
+        [(0, value(10)), (0, value(20))]
+    );
+    assert_eq!(
+        midi_cc_pts(lane(keys, "B"), 7),
+        [(128, value(30)), (128, value(40))]
+    );
 
     // Split on: each source track's controller curves stay in the corresponding MIDI channel pattern.
     let song = open(&bytes);

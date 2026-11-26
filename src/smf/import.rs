@@ -223,7 +223,8 @@ pub fn import(
             match msg {
                 MidiMsg::Program { program: p, .. } => program[usize::from(ch)] = p,
                 MidiMsg::NoteOn { key, vel, .. } => {
-                    let Some(target) = state.target(song, ch, &name, &mut made_here, track_index) else {
+                    let Some(target) = state.target(song, ch, &name, &mut made_here, track_index)
+                    else {
                         continue;
                     };
                     if std::mem::take(&mut new_lane) && made_here >> ch & 1 == 0 {
@@ -262,8 +263,18 @@ pub fn import(
                         format!("CHN #{ch} : MIDI CC #{cc}")
                     };
                     let value = ((f64::from(value) * 0.007874 * 65534.0) as u16).min(65534);
-                    if let Some(target) = state.target(song, ch, &name, &mut made_here, track_index) {
-                        state.point(target, ch, 7 + i32::from(cc), label, track_index, &name, beat, value);
+                    if let Some(target) = state.target(song, ch, &name, &mut made_here, track_index)
+                    {
+                        state.point(
+                            target,
+                            ch,
+                            7 + i32::from(cc),
+                            label,
+                            track_index,
+                            &name,
+                            beat,
+                            value,
+                        );
                     }
                 }
                 MidiMsg::PitchBend { value, .. } => {
@@ -273,7 +284,8 @@ pub fn import(
                         format!("CHN #{ch} : Pitch Wheel")
                     };
                     let value = ((f64::from(value) * 0.000061039 * 65534.0) as u16).min(65534);
-                    if let Some(target) = state.target(song, ch, &name, &mut made_here, track_index) {
+                    if let Some(target) = state.target(song, ch, &name, &mut made_here, track_index)
+                    {
                         state.point(target, ch, 4, label, track_index, &name, beat, value);
                     }
                 }

@@ -93,11 +93,18 @@ pub enum Prop {
     Pitch,
     /// A drum hit's per-hit Repeat count: 0..=7 in the lane (a file may hold 8).
     Repeat,
+    /// A MIDI controller curve attached to a note pattern.
+    MidiCc(u8),
 }
 
-/// The piano roll's items.
-pub const ROLL_PROPS: [Prop; 2] = [Prop::Velocity, Prop::Pan];
-pub const ROLL_LABELS: [&str; 2] = ["Vel", "Pan"];
+/// The piano roll's pinned items. The final selector opens a menu for every other MIDI CC.
+pub const ROLL_PROPS: [Prop; 10] = [
+    Prop::Velocity, Prop::Pan, Prop::MidiCc(1), Prop::MidiCc(7), Prop::MidiCc(10),
+    Prop::MidiCc(11), Prop::MidiCc(64), Prop::MidiCc(74), Prop::MidiCc(91), Prop::MidiCc(93),
+];
+pub const ROLL_LABELS: [&str; 11] = [
+    "Vel", "Pan", "Mod", "Vol", "CC Pan", "Expr", "Sustain", "Bright", "Reverb", "Chorus", "More CC",
+];
 /// The drum editor's items; [`drum_items`] says how many show.
 pub const DRUM_PROPS: [Prop; 4] = [Prop::Velocity, Prop::Pan, Prop::Pitch, Prop::Repeat];
 pub const DRUM_LABELS: [&str; 4] = ["Velocity", "Panning", "Pitch", "Repeat"];
@@ -117,6 +124,7 @@ impl Prop {
             Self::Pan => (254.0 * v).trunc(),
             Self::Pitch => (65534.0 * v).trunc(),
             Self::Repeat => (7.0 * v).round(),
+            Self::MidiCc(_) => (65535.0 * v).round(),
         };
         x as u16
     }
@@ -128,6 +136,7 @@ impl Prop {
             Self::Pan => 254,
             Self::Pitch => 65534,
             Self::Repeat => 7,
+            Self::MidiCc(_) => 65535,
         }
     }
 
@@ -142,7 +151,7 @@ impl Prop {
     /// left, centre and right.
     pub fn land(self, vs: ValueSnap) -> Land {
         let steps = match self {
-            Self::Velocity => 128,
+            Self::Velocity | Self::MidiCc(_) => 128,
             _ => 3,
         };
         vs.land(Some(steps), self.max())
@@ -176,6 +185,7 @@ impl Prop {
             Self::Pan => off_centre(254.0),
             Self::Pitch => off_centre(65535.0),
             Self::Repeat => (v / 8.0).min(1.0),
+            Self::MidiCc(_) => (v / 65535.0).min(1.0),
         }
     }
 
@@ -185,7 +195,7 @@ impl Prop {
         match self {
             Self::Velocity | Self::Repeat => 0.5,
             Self::Pan => 0.75,
-            Self::Pitch => 0.0,
+            Self::Pitch | Self::MidiCc(_) => 0.0,
         }
     }
 
@@ -563,12 +573,37 @@ pub fn frame(
     let content = content(strip, m);
     let list = content.with_max_x(strip.left() + list_w);
     *item = (*item).min(labels.len().saturating_sub(1));
-    let tabs = ItemList {
-        tabs: true,
-        ..ItemList::new(id, list, labels, Bar::Right, color)
-    };
-    item_list_index(ui, cx, &tabs, item);
+    let (content, _) = frame_tabs(ui, cx, id, content, list_w, labels, color, item);
     content
+}
+
+/// Like frame, also returning whether the final tab was clicked (used for the CC picker).
+#[allow(clippy::too_many_arguments)]
+pub fn frame_with_menu(
+    ui: &mut Ui, cx: &UiCtx, id: Id, strip: Rect, list_w: f32, labels: &[&str],
+    color: Color32, item: &mut usize,
+) -> (Rect, bool) {
+    let m = cx.m;
+    let q = crate::ui::timeline::q(m);
+    let px = 1.0 / m.ppp();
+    let above = strip.with_min_y(strip.top() - q - px);
+    let painter = ui.painter_at(above);
+    painter.rect_filled(above, 0.0, cx.theme.colors.background.to_color32());
+    let line = Rect::from_x_y_ranges(strip.x_range(), strip.top() - q..=strip.top());
+    painter.rect_filled(line, 0.0, color.gamma_multiply(0.45));
+    let content = content(strip, m);
+    frame_tabs(ui, cx, id, content, list_w, labels, color, item)
+}
+
+fn frame_tabs(
+    ui: &mut Ui, cx: &UiCtx, id: Id, content: Rect, list_w: f32, labels: &[&str],
+    color: Color32, item: &mut usize,
+) -> (Rect, bool) {
+    let list = content.with_max_x(content.left() + list_w);
+    *item = (*item).min(labels.len().saturating_sub(1));
+    let tabs = ItemList { tabs: true, ..ItemList::new(id, list, labels, Bar::Right, color) };
+    let response = item_list_index(ui, cx, &tabs, item);
+    (content, response.clicked() && *item == labels.len().saturating_sub(1))
 }
 
 /// The lane strip `strip` below its gap, min(strip height, 4) px: the rows of the list, the drum editor's spacer and the value area.
@@ -737,8 +772,8 @@ mod tests {
 
     #[test]
     fn the_selectors_list_the_spec_items_and_repeat_only_in_step_sequencer_mode() {
-        assert_eq!(ROLL_LABELS, ["Vel", "Pan"]);
-        assert_eq!(ROLL_PROPS, [Prop::Velocity, Prop::Pan]);
+        assert_eq!(&ROLL_LABELS[..2], ["Vel", "Pan"]);
+        assert_eq!(&ROLL_PROPS[..2], [Prop::Velocity, Prop::Pan]);
         assert_eq!(DRUM_LABELS, ["Velocity", "Panning", "Pitch", "Repeat"]);
         assert_eq!(
             DRUM_PROPS,

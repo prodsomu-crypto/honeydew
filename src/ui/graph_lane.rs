@@ -758,6 +758,7 @@ pub fn drum_bar(
                 painter.rect_filled(block, 0.0, fill);
             }
         }
+        Prop::MidiCc(_) => {}
     }
 }
 

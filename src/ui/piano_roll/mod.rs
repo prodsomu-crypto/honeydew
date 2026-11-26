@@ -1046,8 +1046,10 @@ impl PianoRoll {
         let mut actions = std::mem::take(&mut self.pending);
         // The clip's events as the roll last left them.
         let seen = std::mem::take(&mut self.seen);
-        self.graph_drag_end(&seen, &self.seen_cc, &mut actions);
+        let seen_cc = std::mem::take(&mut self.seen_cc);
+        self.graph_drag_end(&seen, &seen_cc, &mut actions);
         self.seen = seen;
+        self.seen_cc = seen_cc;
         match std::mem::take(&mut self.gesture) {
             Gesture::Edit(edit) => {
                 self.stop_sound(&edit, &mut actions);
@@ -2280,14 +2282,10 @@ impl PianoRoll {
                     _ => ValueSnap::OFF,
                 };
                 let label = match prop {
-                    Prop::MidiCc(cc) => format!("CC {cc}"),
-                    _ => graph_lane::ROLL_LABELS
-                        .get(item)
-                        .copied()
-                        .unwrap_or("CC")
-                        .to_owned(),
+                    Prop::MidiCc(_) => "CC",
+                    _ => graph_lane::ROLL_LABELS.get(item).copied().unwrap_or("CC"),
                 };
-                let vs = (snap, label.as_str());
+                let vs = (snap, label);
                 let mut items = value::snap_items(self.snap, vs, grids);
                 // Then `Ghosts` (#152), a row below the value column.
                 let shown = [(true, "Show"), (false, "Hide")].map(|(on, label)| PopupItem {

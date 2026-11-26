@@ -568,7 +568,7 @@ impl Remembered {
         match prop {
             Prop::Velocity => self.velocity = byte,
             Prop::Pan => self.pan = byte,
-            Prop::Pitch | Prop::Repeat => {}
+            Prop::Pitch | Prop::Repeat | Prop::MidiCc(_) => {}
         }
     }
 }

@@ -662,7 +662,6 @@ pub(super) fn plays(song: &Song) -> Result<f64, EngineError> {
                     }
                     count
                 }
-                _ => clip.events.len(),
             };
             // It runs before `song_end_beat` validates the clips: a negative length adds nothing, a NaN one is over.
             let clip_plays = ((clip.visible_ticks() / loop_ticks).ceil() + 1.0) * events as f64;

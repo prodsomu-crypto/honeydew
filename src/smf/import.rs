@@ -497,9 +497,14 @@ impl State<'_> {
             // on their existing dedicated automation lanes.
             if (7..=133).contains(&auto.param) {
                 if let Some(note_lane_index) = self.notes.iter()
-                    .find(|lane| lane.channel == auto.channel)
+                    .find(|lane| {
+                        lane.channel == auto.channel
+                            && song.channels[auto.channel].lanes.get(lane.lane)
+                                .is_some_and(|note_lane| note_lane.kind == LaneKind::Notes)
+                    })
                     .map(|lane| lane.lane)
-                    .or_else(|| song.channels[auto.channel].lanes.iter().position(|lane| lane.kind == LaneKind::Notes))
+                    .or_else(|| song.channels[auto.channel].lanes.iter()
+                        .position(|lane| lane.kind == LaneKind::Notes))
                 {
                     auto.points.sort_by(|a, b| a.0.total_cmp(&b.0));
                     let lane = &mut song.channels[auto.channel].lanes[note_lane_index];

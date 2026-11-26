@@ -580,11 +580,7 @@ fn instrument_automation(
 
 /// The song-tick/value events of one MIDI CC curve attached to a note clip, using the same clip loop and
 /// automation interpolation as an ordinary automation lane.
-pub(super) fn cc_points(
-    clip: &Clip,
-    curve: &crate::song::MidiCc,
-    end_beat: f64,
-) -> Result<Vec<(u64, f32)>, EngineError> {
+fn midi_cc_clip(clip: &Clip, curve: &crate::song::MidiCc) -> Clip {
     let mut source = clip.clone();
     source.events = curve.points.iter().map(|point| Event::Automation {
         pos: point.tick,
@@ -594,6 +590,17 @@ pub(super) fn cc_points(
     source.file.shapes = curve.points.iter()
         .map(|point| (point.tick, point.shape))
         .collect();
+    source
+}
+
+/// The song-tick/value events of one MIDI CC curve attached to a note clip, using the same clip loop and
+/// automation interpolation as an ordinary automation lane.
+pub(super) fn cc_points(
+    clip: &Clip,
+    curve: &crate::song::MidiCc,
+    end_beat: f64,
+) -> Result<Vec<(u64, f32)>, EngineError> {
+    let source = midi_cc_clip(clip, curve);
     let playback = automation_clip(&source, false)?;
     let end_tick = (end_beat * f64::from(PPQ)).ceil() as u64;
     let mut points = Vec::new();
@@ -640,8 +647,13 @@ pub(super) fn plays(song: &Song) -> Result<f64, EngineError> {
                     })
                     .sum(),
                 LaneKind::Audio => super::audio_clips::plays_per_pass(clip)?,
-                LaneKind::Notes => clip.events.len()
-                    + clip.file.midi_cc.iter().map(|curve| curve.points.len()).sum::<usize>(),
+                LaneKind::Notes => {
+                    let mut count = clip.events.len();
+                    for curve in &clip.file.midi_cc {
+                        count += automation_clip(&midi_cc_clip(clip, curve), false)?.events.len();
+                    }
+                    count
+                },
                 _ => clip.events.len(),
             };
             // It runs before `song_end_beat` validates the clips: a negative length adds nothing, a NaN one is over.

@@ -11,7 +11,8 @@ use honeydew_audio::note_effects::LiveNoteEvent;
 use honeydew_audio::sequencer::{InputNoteEvent, NoteKind, sort_note_events};
 
 use super::prepare::{
-    Action, MAX_PLAYS, ScheduledAction, lane_points, note_effect, note_rack, plays, song_end_beat,
+    Action, MAX_PLAYS, ScheduledAction, cc_points, lane_points, note_effect, note_rack, plays,
+    song_end_beat,
 };
 use super::routing::reaches;
 use super::{EngineError, PITCH_BEND, SongAudioEngine, midi_cc, set_key};
@@ -126,6 +127,20 @@ pub(crate) fn midi_received(song: &Song, sample_rate: f32) -> Result<Vec<Receive
         .collect();
     for (channel, ch) in song.channels.iter().enumerate() {
         let reach = sends.reach(channel, |_| true);
+        for lane in ch.lanes.iter().filter(|lane| lane.kind == LaneKind::Notes) {
+            for clip in crate::audio_bridge::playing_clips(lane) {
+                for curve in &clip.file.midi_cc {
+                    let param = 7 + i32::from(curve.cc);
+                    if !reach.is_empty() {
+                        for (tick, value) in cc_points(clip, curve, end_beat)? {
+                            (reach.iter()).for_each(|&target| {
+                                received[target].params.push((tick, param, value));
+                            });
+                        }
+                    }
+                }
+            }
+        }
         for lane in ch.lanes.iter().filter(|l| l.kind == LaneKind::Automation) {
             let target = lane
                 .target

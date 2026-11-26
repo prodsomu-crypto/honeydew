@@ -19,7 +19,7 @@ use crate::content::Factory;
 use crate::midi::MidiMsg;
 use crate::song::points::{self, Point, PointKey, Shape, ShapeKind};
 use crate::song::{
-    AutomationTarget, ChannelKind, Clip, DrumGrid, Event, Lane, LaneKind, PPQ, Song, SynthKind,
+    AutomationTarget, ChannelKind, Clip, DrumGrid, Event, Lane, LaneKind, MidiCc, PPQ, Song, SynthKind,
     TEMPO_RANGE, TEMPO_TARGET, tempo_value,
 };
 
@@ -493,6 +493,59 @@ impl State<'_> {
             fit(clip, bar);
         }
         for mut auto in self.autos {
+            // MIDI CC belongs to the same pattern as the notes it accompanies. Pitch bend and other automation remain
+            // on their existing dedicated automation lanes.
+            if (7..=133).contains(&auto.param) {
+                if let Some(note_lane_index) = self.notes.iter()
+                    .find(|lane| lane.channel == auto.channel)
+                    .map(|lane| lane.lane)
+                    .or_else(|| song.channels[auto.channel].lanes.iter().position(|lane| lane.kind == LaneKind::Notes))
+                {
+                    auto.points.sort_by(|a, b| a.0.total_cmp(&b.0));
+                    let lane = &mut song.channels[auto.channel].lanes[note_lane_index];
+                    if lane.clips.is_empty() {
+                        let clip = new_clip(lane, auto.points.iter().map(|point| point.0));
+                        fit(clip, bar);
+                    }
+                    if let Some(clip) = lane.clips.first_mut() {
+                        let first_tick = auto.points.first().map_or(clip.start_tick, |point| tick(point.0));
+                        if first_tick < clip.start_tick {
+                            let shift = clip.start_tick - first_tick;
+                            clip.start_tick = first_tick;
+                            for event in &mut clip.events {
+                                if let Event::Note { pos, .. } = event {
+                                    *pos = pos.saturating_add(shift);
+                                }
+                            }
+                            for curve in &mut clip.file.midi_cc {
+                                for point in &mut curve.points {
+                                    point.tick = point.tick.saturating_add(shift);
+                                }
+                            }
+                        }
+                        let cc = (auto.param - 7) as u8;
+                        let points: Vec<Point> = auto.points.iter().map(|&(beat, value)| Point {
+                            tick: tick(beat).saturating_sub(clip.start_tick),
+                            value,
+                            ..Default::default()
+                        }).collect();
+                        let curve = match clip.file.midi_cc.iter_mut().find(|curve| curve.cc == cc) {
+                            Some(curve) => curve,
+                            None => {
+                                clip.file.midi_cc.push(MidiCc { cc, points: Vec::new() });
+                                clip.file.midi_cc.last_mut().expect("CC curve was just added")
+                            }
+                        };
+                        curve.points.extend(points);
+                        curve.points.sort_by_key(|point| point.tick);
+                        let end = curve.points.iter().map(|point| f64::from(point.tick))
+                            .fold(0.0, f64::max) / f64::from(PPQ);
+                        clip.visible_len_beats = clip.visible_len_beats.max(end);
+                        fit(clip, bar);
+                        continue;
+                    }
+                }
+            }
             let target = AutomationTarget {
                 instance_id: 0,
                 param: auto.param,

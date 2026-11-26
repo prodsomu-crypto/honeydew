@@ -112,12 +112,16 @@ pub fn smf_with(
             };
             let source: Box<dyn Iterator<Item = (f64, &Event)>> = match burned {
                 Some((events, written)) => {
-                    if std::mem::replace(written, true) || events.is_empty() {
+                    if std::mem::replace(written, true)
+                        || (events.is_empty() && lane.clips.iter().all(|clip| clip.file.midi_cc.is_empty()))
+                    {
                         continue;
                     }
                     Box::new(events.iter().map(|e| (f64::from(e.pos()), e)))
                 }
-                None if lane.clips.iter().all(|c| c.events.is_empty()) => continue,
+                None if lane.clips.iter().all(|clip| {
+                    clip.events.is_empty() && clip.file.midi_cc.is_empty()
+                }) => continue,
                 None => Box::new(lane.clips.iter().flat_map(plays)),
             };
             // (tick, not a note-off, message): note-offs go first at a tick, then the clips' order.
@@ -129,6 +133,32 @@ pub fn smf_with(
                 let msgs = messages(write, ch, step, t, event, channel.drum_kit.as_ref());
                 budget -= msgs.len();
                 events.extend(msgs);
+            }
+            // CCs live in the same pattern as their notes, but export as normal MIDI controller messages.
+            if matches!(write, Write::Notes) {
+                for clip in &lane.clips {
+                    for curve in &clip.file.midi_cc {
+                        let mut automation = clip.clone();
+                        automation.events = curve.points.iter().map(|point| Event::Automation {
+                            pos: point.tick,
+                            value: f32::from(point.value) / 65535.0,
+                            control: true,
+                        }).collect();
+                        automation.file.shapes = curve.points.iter()
+                            .map(|point| (point.tick, point.shape))
+                            .collect();
+                        for (t, event) in plays(&automation) {
+                            if budget < 2 {
+                                break;
+                            }
+                            let msgs = messages(
+                                Write::Cc(curve.cc), ch, step, t, event, channel.drum_kit.as_ref(),
+                            );
+                            budget -= msgs.len();
+                            events.extend(msgs);
+                        }
+                    }
+                }
             }
             events.sort_by_key(|&(tick, not_off, _)| (tick, not_off));
             let mut track = vec![(0, SmfEvent::Name(name.clone().into_bytes()))];

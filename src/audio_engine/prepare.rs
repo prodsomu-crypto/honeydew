@@ -578,6 +578,33 @@ fn instrument_automation(
     Ok(())
 }
 
+/// The song-tick/value events of one MIDI CC curve attached to a note clip, using the same clip loop and
+/// automation interpolation as an ordinary automation lane.
+pub(super) fn cc_points(
+    clip: &Clip,
+    curve: &crate::song::MidiCc,
+    end_beat: f64,
+) -> Result<Vec<(u64, f32)>, EngineError> {
+    let mut source = clip.clone();
+    source.events = curve.points.iter().map(|point| Event::Automation {
+        pos: point.tick,
+        value: f32::from(point.value) / 65535.0,
+        control: true,
+    }).collect();
+    source.file.shapes = curve.points.iter()
+        .map(|point| (point.tick, point.shape))
+        .collect();
+    let playback = automation_clip(&source, false)?;
+    let end_tick = (end_beat * f64::from(PPQ)).ceil() as u64;
+    let mut points = Vec::new();
+    for (tick, event) in playback.events_in_song_range(0, end_tick) {
+        if let Event::Automation { value, .. } = event {
+            points.push((tick, *value));
+        }
+    }
+    Ok(points)
+}
+
 /// The values automation `lane` plays up to `end_beat`, as (song tick, value), clip by clip.
 pub(super) fn lane_points(lane: &Lane, end_beat: f64) -> Result<Vec<(u64, f32)>, EngineError> {
     let end_tick = (end_beat * f64::from(PPQ)).ceil() as u64;
@@ -613,6 +640,8 @@ pub(super) fn plays(song: &Song) -> Result<f64, EngineError> {
                     })
                     .sum(),
                 LaneKind::Audio => super::audio_clips::plays_per_pass(clip)?,
+                LaneKind::Notes => clip.events.len()
+                    + clip.file.midi_cc.iter().map(|curve| curve.points.len()).sum::<usize>(),
                 _ => clip.events.len(),
             };
             // It runs before `song_end_beat` validates the clips: a negative length adds nothing, a NaN one is over.

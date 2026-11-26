@@ -495,8 +495,8 @@ impl State<'_> {
         for mut auto in self.autos {
             // MIDI CC belongs to the same pattern as the notes it accompanies. Pitch bend and other automation remain
             // on their existing dedicated automation lanes.
-            if (7..=133).contains(&auto.param) {
-                if let Some(note_lane_index) = self
+            if (7..=133).contains(&auto.param)
+                && let Some(note_lane_index) = self
                     .notes
                     .iter()
                     .find(|lane| {

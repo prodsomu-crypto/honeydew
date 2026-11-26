@@ -5,7 +5,7 @@
 //! - Running status is kept across metas and SysEx, which are skipped ([`codec::read`]); a data byte with no status
 //!   before it fails the file.
 //! - A channel's program is its last `Cn`; a channel without one plays GM program 0.
-//! - A CC lane is shared by the SMF tracks of one target channel, MIDI channel and CC.
+//! - MIDI CC curves stay with the note pattern from their SMF track; pitch bend keeps its channel automation lane.
 //! - A file whose scan finds no channel opens as a song with only the master (the tempo set); the track menu imports
 //!   nothing from it.
 //! - Opened as a song, a file of more than one tempo plays as a tempo map ([`set_tempo`]); the track menu keeps the
@@ -44,7 +44,7 @@ pub struct Scan {
 pub struct ImportOpts {
     /// `Split MIDI channels`: one new channel per MIDI channel; off, everything goes into the current channel.
     pub split: bool,
-    /// `Import automation`: CC lanes. The pitch wheel is imported either way.
+    /// `Import automation`: MIDI CC curves in their note patterns. The pitch wheel is imported either way.
     pub automation: bool,
     /// `Only supported`: CC 1, 7, 8, 10 and 64 only.
     pub only_supported: bool,
@@ -158,7 +158,8 @@ pub struct Imported {
 }
 
 /// Imports `bytes` into `song`: with Split on (always when `as_song`) into one new channel per selected MIDI channel,
-/// else into channel `current`; notes on notes lanes, controllers and the pitch wheel on channel automation lanes. A
+/// else into channel `current`; notes on notes lanes, MIDI CC curves in their note patterns, and pitch wheel on its
+/// channel automation lane. A
 /// new channel plays the sound of its GM program from `factory` ([`gm::load_program`]); MIDI channel 10 a Drums
 /// channel with our kit, its notes as hits on a notes-grid drum lane ([`gm::drum_kit`]). `as_song` (opening a `.mid`)
 /// also sets the file tempo and its tempo map (`set_tempo`). `Err` (the detail for [`LOAD_FAILED`]) leaves the song as
@@ -189,7 +190,7 @@ pub fn import(
     let division = f64::from(smf.division);
     // The `FF 51`s as (beat, BPM), in file order.
     let (mut tempos, mut program) = (Vec::new(), [0u8; 16]);
-    for track in &smf.tracks {
+    for (track_index, track) in smf.tracks.iter().enumerate() {
         let mut name = String::new();
         let mut new_lane = true;
         // The MIDI channels whose channel this track made.
@@ -222,7 +223,7 @@ pub fn import(
             match msg {
                 MidiMsg::Program { program: p, .. } => program[usize::from(ch)] = p,
                 MidiMsg::NoteOn { key, vel, .. } => {
-                    let Some(target) = state.target(song, ch, &name, &mut made_here) else {
+                    let Some(target) = state.target(song, ch, &name, &mut made_here, track_index) else {
                         continue;
                     };
                     if std::mem::take(&mut new_lane) && made_here >> ch & 1 == 0 {
@@ -236,7 +237,7 @@ pub fn import(
                         if drums {
                             channel.lanes[lane].grid = DrumGrid::Notes;
                         }
-                        state.start_notes(target, lane);
+                        state.start_notes(target, lane, track_index);
                     }
                     let velocity = (f64::from(vel) * 0.007874 * 255.0) as u8;
                     if let Some(&lane) = state.last_notes.get(&target) {
@@ -261,8 +262,8 @@ pub fn import(
                         format!("CHN #{ch} : MIDI CC #{cc}")
                     };
                     let value = ((f64::from(value) * 0.007874 * 65534.0) as u16).min(65534);
-                    if let Some(target) = state.target(song, ch, &name, &mut made_here) {
-                        state.point(target, ch, 7 + i32::from(cc), label, beat, value);
+                    if let Some(target) = state.target(song, ch, &name, &mut made_here, track_index) {
+                        state.point(target, ch, 7 + i32::from(cc), label, track_index, &name, beat, value);
                     }
                 }
                 MidiMsg::PitchBend { value, .. } => {
@@ -272,8 +273,8 @@ pub fn import(
                         format!("CHN #{ch} : Pitch Wheel")
                     };
                     let value = ((f64::from(value) * 0.000061039 * 65534.0) as u16).min(65534);
-                    if let Some(target) = state.target(song, ch, &name, &mut made_here) {
-                        state.point(target, ch, 4, label, beat, value);
+                    if let Some(target) = state.target(song, ch, &name, &mut made_here, track_index) {
+                        state.point(target, ch, 4, label, track_index, &name, beat, value);
                     }
                 }
                 MidiMsg::ChannelPressure { .. } => {}
@@ -316,14 +317,15 @@ struct State<'a> {
     last_notes: HashMap<usize, usize>,
     notes: Vec<NotesLane>,
     autos: Vec<AutoLane>,
-    /// (target channel, MIDI channel, param) → index into `autos` (the reuse key).
-    auto_index: HashMap<(usize, u8, i32), usize>,
+    /// (pattern track, target channel, MIDI channel, param) → index into `autos`.
+    auto_index: HashMap<(usize, usize, u8, i32), usize>,
 }
 
 /// A notes lane the import made, and its notes.
 struct NotesLane {
     channel: usize,
     lane: usize,
+    track: usize,
     notes: Vec<Note>,
     /// Per key, the latest-starting note (the last added of equal starts).
     latest: [Option<usize>; 128],
@@ -339,6 +341,8 @@ struct Note {
 /// A channel automation lane to add, and its points as (beat, u16).
 struct AutoLane {
     channel: usize,
+    track: usize,
+    track_name: String,
     param: i32,
     label: String,
     points: Vec<(f64, u16)>,
@@ -394,6 +398,7 @@ impl State<'_> {
         ch: u8,
         name: &str,
         made_here: &mut u16,
+        track: usize,
     ) -> Option<usize> {
         if let Some(i) = self.existing(ch) {
             return Some(i);
@@ -422,16 +427,17 @@ impl State<'_> {
         }
         self.made[usize::from(ch)] = Some(i);
         *made_here |= 1 << ch;
-        self.start_notes(i, 0);
+        self.start_notes(i, 0, track);
         Some(i)
     }
 
     /// Lane `lane` of channel `channel` becomes its last notes lane.
-    fn start_notes(&mut self, channel: usize, lane: usize) {
+    fn start_notes(&mut self, channel: usize, lane: usize, track: usize) {
         self.last_notes.insert(channel, self.notes.len());
         self.notes.push(NotesLane {
             channel,
             lane,
+            track,
             notes: Vec::new(),
             latest: [None; 128],
         });
@@ -439,12 +445,28 @@ impl State<'_> {
 
     /// Adds a point to channel `channel`'s lane of `param` for MIDI channel `ch`, made (labelled `label`) the first
     /// time.
-    fn point(&mut self, channel: usize, ch: u8, param: i32, label: String, beat: f64, value: u16) {
+    fn point(
+        &mut self,
+        channel: usize,
+        ch: u8,
+        param: i32,
+        label: String,
+        track: usize,
+        track_name: &str,
+        beat: f64,
+        value: u16,
+    ) {
+        let pattern_track = if (7..=133).contains(&param) { track } else { 0 };
         let next = self.autos.len();
-        let i = *self.auto_index.entry((channel, ch, param)).or_insert(next);
+        let i = *self
+            .auto_index
+            .entry((pattern_track, channel, ch, param))
+            .or_insert(next);
         if i == next {
             self.autos.push(AutoLane {
                 channel,
+                track,
+                track_name: track_name.to_owned(),
                 param,
                 label,
                 points: Vec::new(),
@@ -492,28 +514,44 @@ impl State<'_> {
             clip.events.sort_by_key(Event::pos);
             fit(clip, bar);
         }
+
+        // Remember the pattern lane belonging to each source track and target channel. CC-only tracks get their own
+        // empty note pattern rather than an unrelated channel-wide automation lane.
+        let mut pattern_lanes: HashMap<(usize, usize), usize> = self
+            .notes
+            .iter()
+            .filter(|lane| {
+                song.channels
+                    .get(lane.channel)
+                    .and_then(|channel| channel.lanes.get(lane.lane))
+                    .is_some_and(|pattern| pattern.kind == LaneKind::Notes)
+            })
+            .map(|lane| ((lane.track, lane.channel), lane.lane))
+            .collect();
+
         for mut auto in self.autos {
-            // MIDI CC belongs to the same pattern as the notes it accompanies. Pitch bend and other automation remain
-            // on their existing dedicated automation lanes.
-            if (7..=133).contains(&auto.param)
-                && let Some(note_lane_index) = self
-                    .notes
+            // MIDI CC belongs to the note pattern from the same SMF track. Pitch bend remains on its automation lane.
+            let note_lane_index = if (7..=133).contains(&auto.param) {
+                if let Some(&index) = pattern_lanes.get(&(auto.track, auto.channel)) {
+                    Some(index)
+                } else if song.channels[auto.channel]
+                    .lanes
                     .iter()
-                    .find(|lane| {
-                        lane.channel == auto.channel
-                            && song.channels[auto.channel]
-                                .lanes
-                                .get(lane.lane)
-                                .is_some_and(|note_lane| note_lane.kind == LaneKind::Notes)
-                    })
-                    .map(|lane| lane.lane)
-                    .or_else(|| {
-                        song.channels[auto.channel]
-                            .lanes
-                            .iter()
-                            .position(|lane| lane.kind == LaneKind::Notes)
-                    })
-            {
+                    .any(|lane| lane.kind == LaneKind::Notes)
+                {
+                    let channel = &mut song.channels[auto.channel];
+                    let index = channel.add_lane(LaneKind::Notes);
+                    channel.lanes[index].label.clone_from(&auto.track_name);
+                    pattern_lanes.insert((auto.track, auto.channel), index);
+                    Some(index)
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+            if let Some(note_lane_index) = note_lane_index {
                 auto.points.sort_by(|a, b| a.0.total_cmp(&b.0));
                 let lane = &mut song.channels[auto.channel].lanes[note_lane_index];
                 if lane.clips.is_empty() {
@@ -564,10 +602,11 @@ impl State<'_> {
                     };
                     curve.points.extend(points);
                     curve.points.sort_by_key(|point| point.tick);
+                    // Keep the final controller event inside the visible pattern and its loop.
                     let end = curve
                         .points
                         .iter()
-                        .map(|point| f64::from(point.tick))
+                        .map(|point| f64::from(point.tick.saturating_add(1)))
                         .fold(0.0, f64::max)
                         / f64::from(PPQ);
                     clip.visible_len_beats = clip.visible_len_beats.max(end);
@@ -575,13 +614,14 @@ impl State<'_> {
                     continue;
                 }
             }
+
             let target = AutomationTarget {
                 instance_id: 0,
                 param: auto.param,
             };
             let lane = song.channels[auto.channel].add_automation_lane(target);
             lane.label = auto.label;
-            // in time order (stable), so a lane shared by tracks stays a stepped curve.
+            // In time order (stable), so a lane shared by tracks stays a stepped curve.
             auto.points.sort_by(|a, b| a.0.total_cmp(&b.0));
             let clip = new_clip(lane, auto.points.iter().map(|p| p.0));
             let start = clip.start_tick;

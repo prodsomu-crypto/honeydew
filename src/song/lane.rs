@@ -215,6 +215,9 @@ impl Clip {
                 };
                 f64::from(e.pos()) + len
             })
+            .chain(self.file.midi_cc.iter().flat_map(|curve| {
+                curve.points.iter().map(|point| f64::from(point.tick))
+            }))
             .fold(0.0, f64::max);
         // The smallest base·2ᵏ ≥ end, at least base.
         let doubled = |mut n: f64, end: f64| {

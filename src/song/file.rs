@@ -460,6 +460,15 @@ pub struct LaneFileState {
     pub desc_extra: Vec<u8>,
 }
 
+/// One MIDI controller curve stored with its note pattern in Honeydew's HDCC chunk.
+#[derive(Clone, Debug, PartialEq)]
+pub struct MidiCc {
+    /// MIDI 1.0 controller number, 0…127.
+    pub cc: u8,
+    /// Pattern-local control points, sorted by tick.
+    pub points: Vec<super::points::Point>,
+}
+
 /// `CLIP` fields beyond the clip model.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ClipFileState {
@@ -479,6 +488,8 @@ pub struct ClipFileState {
     /// `HDSh` (Honeydew's own): on an automation clip, the shape of each segment that is not the straight line, by the
     /// tick of its point (sorted, one per tick: the last point at a tick starts the segment that has a length).
     pub shapes: Vec<(u32, honeydew_audio::automation::Shape)>,
+    /// MIDI CC curves belonging to this note clip, not to a separate playlist lane.
+    pub midi_cc: Vec<MidiCc>,
 }
 
 impl Default for ClipFileState {
@@ -491,6 +502,7 @@ impl Default for ClipFileState {
             header_extra: Vec::new(),
             raw_events: Raw::default(),
             shapes: Vec::new(),
+            midi_cc: Vec::new(),
         }
     }
 }

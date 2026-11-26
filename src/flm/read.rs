@@ -1137,6 +1137,11 @@ impl Reader {
                     self.charge(2 * child.payload.len(), &child.path)?;
                     clip.file.shapes = shapes(child.payload);
                 }
+                b"HDCC" if kind == LaneKind::Notes => {
+                    self.charge(2 * child.payload.len(), &child.path)?;
+                    clip.file.midi_cc = midi_cc_curves(child.payload)
+                        .ok_or_else(|| FlmError::new(&child.path, FlmErrorKind::BadValue))?;
+                }
                 b"CLSm" => {
                     let (_, mut sample) = self.slot(&child)?;
                     *next_slot = (*next_slot + 1).min(MAX_ID);
@@ -1148,6 +1153,51 @@ impl Reader {
         }
         Ok(clip)
     }
+}
+
+/// The clip-local MIDI CC payload (HDCC, version 1): u16 version, u16 curve count, then for each curve
+/// u8 controller, u32 point count, and u32 tick/u16 value/u8 shape/u8 tension point records.
+fn midi_cc_curves(payload: &[u8]) -> Option<Vec<crate::song::MidiCc>> {
+    use crate::song::points::{Point, Shape, ShapeKind};
+    let mut at = 0usize;
+    let read_u8 = |at: &mut usize| -> Option<u8> {
+        let value = *payload.get(*at)?;
+        *at += 1;
+        Some(value)
+    };
+    let read_u16 = |at: &mut usize| -> Option<u16> {
+        let end = at.checked_add(2)?;
+        let bytes: [u8; 2] = payload.get(*at..end)?.try_into().ok()?;
+        *at = end;
+        Some(u16::from_le_bytes(bytes))
+    };
+    let read_u32 = |at: &mut usize| -> Option<u32> {
+        let end = at.checked_add(4)?;
+        let bytes: [u8; 4] = payload.get(*at..end)?.try_into().ok()?;
+        *at = end;
+        Some(u32::from_le_bytes(bytes))
+    };
+    if read_u16(&mut at)? != 1 { return None; }
+    let count = usize::from(read_u16(&mut at)?);
+    if count > 128 { return None; }
+    let mut curves = Vec::with_capacity(count);
+    for _ in 0..count {
+        let cc = read_u8(&mut at)?;
+        let point_count = usize::try_from(read_u32(&mut at)?).ok()?;
+        let bytes = point_count.checked_mul(8)?;
+        if at.checked_add(bytes)? > payload.len() { return None; }
+        let mut points = Vec::with_capacity(point_count);
+        for _ in 0..point_count {
+            let tick = read_u32(&mut at)?;
+            let value = read_u16(&mut at)?;
+            let kind = *ShapeKind::ALL.get(usize::from(read_u8(&mut at)?))?;
+            let tension = read_u8(&mut at)?.min(100);
+            points.push(Point { tick, value, shape: Shape { kind, tension } });
+        }
+        points.sort_by_key(|point| point.tick);
+        curves.push(crate::song::MidiCc { cc, points });
+    }
+    (at == payload.len()).then_some(curves)
 }
 
 /// An `HDSh` (`flm::write`): 6-byte records of u32 tick, u8 shape, u8 tension. An unknown shape is skipped, a tension

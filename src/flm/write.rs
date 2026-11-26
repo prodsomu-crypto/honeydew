@@ -600,6 +600,25 @@ fn write_clip(
             Ok(())
         })?;
     }
+    if kind == LaneKind::Notes && !clip.file.midi_cc.is_empty() {
+        writer.chunk(*b"HDCC", |writer| {
+            writer.u16(1)?;
+            writer.u16(u16::try_from(clip.file.midi_cc.len())
+                .map_err(|_| FlmError::new("HDCC", FlmErrorKind::TooLarge))?)?;
+            for curve in &clip.file.midi_cc {
+                writer.u8(curve.cc)?;
+                writer.u32(u32::try_from(curve.points.len())
+                    .map_err(|_| FlmError::new("HDCC", FlmErrorKind::TooLarge))?)?;
+                for point in &curve.points {
+                    writer.u32(point.tick)?;
+                    writer.u16(point.value)?;
+                    writer.u8(point.shape.kind as u8)?;
+                    writer.u8(point.shape.tension)?;
+                }
+            }
+            Ok(())
+        })?;
+    }
     write_raw(writer, &clip.file.unknown_chunks)
 }
 

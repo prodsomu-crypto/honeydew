@@ -1886,8 +1886,9 @@ impl PianoRoll {
         let (m, colors) = (cx.m, &cx.theme.colors);
         let list_w = m.u(KEYS_W);
         let more_label = format!("CC {} ▾", self.other_cc);
-        let mut labels = graph_lane::ROLL_LABELS[..10].to_vec();
-        labels.push(Box::leak(more_label.into_boxed_str()));
+        let label_storage: Vec<String> = graph_lane::ROLL_LABELS[..10].iter()
+            .map(|label| (*label).to_owned()).chain(std::iter::once(more_label)).collect();
+        let labels: Vec<&str> = label_storage.iter().map(String::as_str).collect();
         let list = id.with("graph list");
         let (content, more_clicked) = graph_lane::frame_with_menu(
             ui, cx, list, strip, list_w, &labels, color.to_color32(), &mut self.graph.item,

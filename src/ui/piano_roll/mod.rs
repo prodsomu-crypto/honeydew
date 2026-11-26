@@ -143,7 +143,8 @@ use eframe::egui::{self, Align2, Color32, Id, Pos2, Rangef, Rect, Sense, Vec2, p
 
 use crate::params::DRUM_SLOT_PARAMS;
 use crate::song::scales::{CHROMATIC, SCALE_MASKS, scale_to_stored};
-use crate::song::{Clip, Event, LaneKind, PPQ, Song, TimeSig};
+use crate::song::points::{Point, Shape};
+use crate::song::{ChannelParams, Clip, Event, LaneKind, MidiCc, PPQ, Song, TimeSig};
 use crate::theme::{Rgba, channel_color};
 use crate::ui::automation::geom;
 use crate::ui::automation::value::{self, Pick, ValueGrid, ValueSnap};
@@ -337,9 +338,15 @@ pub struct PianoRoll {
     /// The graph lane ([`graph_lane`]): its item, size and tab; and its drag: the clip's events at the drag's start,
     /// and whether the drag has reported an edit (its end then closes it, even with the notes back as they were).
     pub(crate) graph: GraphLane,
-    graph_drag: Option<(Vec<Event>, bool)>,
-    /// The graph lane's value snap, `Vel`'s and `Pan`'s ([`graph_lane::ROLL_PROPS`]): app settings, off by default.
+    graph_drag: Option<(Vec<Event>, Vec<MidiCc>, bool)>,
+    /// A snapshot of the clip-local CC curves, used to end a CC drag as one undoable edit.
+    seen_cc: Vec<MidiCc>,
+    /// The controller selected by the final graph-lane picker tab.
+    other_cc: u8,
+    cc_picker_open: bool,
+    /// Velocity, pan and controller-value snapping.
     pub value_snap: [ValueSnap; 2],
+    cc_value_snap: ValueSnap,
     /// The graph lane's tab's sideways place, in U from the key column's right edge (PR #87): an app setting, shared
     /// with the drum editors' tabs (`Settings::graph_tab_shift`); a sideways drag of the tab moves it.
     pub graph_tab_shift: f32,
@@ -478,6 +485,25 @@ enum MoreOp {
 /// The floating buttons over a selection.
 const FLOATING: [&str; 4] = ["Copy", "Delete", "Snap", "More..."];
 
+fn paint_cc_point(clip: &mut Clip, cc: u8, tick: f64, value: u16) -> bool {
+    let at = tick.max(0.0).round().min(u32::MAX as f64) as u32;
+    let curve = match clip.file.midi_cc.iter_mut().find(|curve| curve.cc == cc) {
+        Some(curve) => curve,
+        None => {
+            clip.file.midi_cc.push(MidiCc { cc, points: Vec::new() });
+            clip.file.midi_cc.last_mut().expect("curve was just added")
+        }
+    };
+    if let Some(point) = curve.points.iter_mut().find(|point| point.tick == at) {
+        if point.value == value { return false; }
+        point.value = value;
+    } else {
+        curve.points.push(Point { tick: at, value, ..Point::default() });
+        curve.points.sort_by_key(|point| point.tick);
+    }
+    true
+}
+
 impl PianoRoll {
     pub fn new(channel: usize, lane: usize, clip_id: Option<u32>) -> Self {
         Self {
@@ -497,7 +523,11 @@ impl PianoRoll {
             region: RangeSelect::default(),
             graph: GraphLane::default(),
             graph_drag: None,
+            seen_cc: Vec::new(),
+            other_cc: 2,
+            cc_picker_open: false,
             value_snap: [ValueSnap::OFF; 2],
+            cc_value_snap: ValueSnap::OFF,
             graph_tab_shift: 0.0,
             row: clips::FloatingRow::default(),
             pulse: 0.0,
@@ -671,14 +701,20 @@ impl PianoRoll {
 
         // The selection follows the clip; an outside change (another clip, undo) drops it.
         let events = self.clip(song).map_or(&[][..], |c| &c.events);
-        if events != self.seen.as_slice() || self.selected.len() != events.len() {
+        let midi_cc = self.clip(song).map_or(&[][..], |c| &c.file.midi_cc);
+        if events != self.seen.as_slice()
+            || midi_cc != self.seen_cc.as_slice()
+            || self.selected.len() != events.len()
+        {
             self.seen = events.to_vec();
+            self.seen_cc = midi_cc.to_vec();
             self.selected = vec![false; events.len()];
             // A dragged key stops; the change (an undo) has dealt with the edit.
             if let Gesture::Edit(edit) = std::mem::take(&mut self.gesture) {
                 self.stop_sound(&edit, &mut actions);
             }
             self.graph_drag = None;
+            self.cc_picker_open = false;
         }
         let panel = match self.menu {
             Some(Menu::Generate(panel)) => Some(panel),
@@ -833,7 +869,7 @@ impl PianoRoll {
         } else {
             // The lane went mid-drag: the drag ends as its release would.
             let events = self.clip(song).map_or(&[][..], |c| &c.events);
-            self.graph_drag_end(events, &mut actions);
+            self.graph_drag_end(events, self.clip(song).map_or(&[][..], |c| &c.file.midi_cc), &mut actions);
         }
         self.drawn_ghosts = ghosts;
 
@@ -992,7 +1028,7 @@ impl PianoRoll {
         let mut actions = std::mem::take(&mut self.pending);
         // The clip's events as the roll last left them.
         let seen = std::mem::take(&mut self.seen);
-        self.graph_drag_end(&seen, &mut actions);
+        self.graph_drag_end(&seen, &self.seen_cc, &mut actions);
         self.seen = seen;
         match std::mem::take(&mut self.gesture) {
             Gesture::Edit(edit) => {
@@ -1010,11 +1046,11 @@ impl PianoRoll {
     /// The end of a graph-lane drag, if one is under way, with the clip's notes now `events`: one that changed nothing
     /// clears the selection and re-syncs, with no undo step (its own undo); else one that reported edits is a final
     /// edit.
-    fn graph_drag_end(&mut self, events: &[Event], actions: &mut Vec<PianoRollAction>) {
-        let Some((orig, reported)) = self.graph_drag.take() else {
+    fn graph_drag_end(&mut self, events: &[Event], midi_cc: &[MidiCc], actions: &mut Vec<PianoRollAction>) {
+        let Some((orig, orig_cc, reported)) = self.graph_drag.take() else {
             return;
         };
-        if events == orig {
+        if events == orig && midi_cc == orig_cc {
             self.selected.fill(false);
             actions.push(PianoRollAction::Resync);
         } else if reported {
@@ -1849,22 +1885,53 @@ impl PianoRoll {
     ) {
         let (m, colors) = (cx.m, &cx.theme.colors);
         let list_w = m.u(KEYS_W);
-        let labels = &graph_lane::ROLL_LABELS;
+        let more_label = format!("CC {} ▾", self.other_cc);
+        let mut labels = graph_lane::ROLL_LABELS[..10].to_vec();
+        labels.push(Box::leak(more_label.into_boxed_str()));
         let list = id.with("graph list");
-        let content = graph_lane::frame(
-            ui,
-            cx,
-            list,
-            strip,
-            list_w,
-            labels,
-            color.to_color32(),
-            &mut self.graph.item,
+        let (content, more_clicked) = graph_lane::frame_with_menu(
+            ui, cx, list, strip, list_w, &labels, color.to_color32(), &mut self.graph.item,
         );
-        // From the grid's x: the list column, then a t gap of the frame's `background` (as the grid's).
+        if more_clicked {
+            self.cc_picker_open = true;
+        }
+        if self.cc_picker_open {
+            let pinned = [1_u8, 7, 10, 11, 64, 74, 91, 93];
+            let items: Vec<PopupItem<u8>> = (0_u8..=126)
+                .filter(|cc| !pinned.contains(cc))
+                .enumerate()
+                .map(|(i, cc)| {
+                    let name = ChannelParams::name(7 + i32::from(cc))
+                        .unwrap_or_else(|| format!("CC {cc}"));
+                    let mut item = PopupItem::new(
+                        cc, i % 3, i / 3, format!("CC {cc}  {name}"),
+                    );
+                    item.current = cc == self.other_cc;
+                    item
+                })
+                .collect();
+            let bounds = ui.ctx().content_rect();
+            let center = pos2(strip.left() + list_w + m.u(3.0), strip.center().y);
+            let picked = popup::show(ui.ctx(), id.with("cc_picker"), center, bounds, &items, cx);
+            if let Some(cc) = picked.selected {
+                self.other_cc = cc;
+                self.graph.item = graph_lane::ROLL_PROPS.len();
+            }
+            if picked.close {
+                self.cc_picker_open = false;
+            }
+        }
+        // From the grid's x: the list column, then a t gap of the frame's background (as the grid's).
         let values = content.with_min_x(strip.left() + list_w + m.t());
-        let prop = graph_lane::ROLL_PROPS[self.graph.item];
-        let land = prop.land(self.value_snap[self.graph.item]);
+        let prop = graph_lane::ROLL_PROPS.get(self.graph.item).copied()
+            .unwrap_or(Prop::MidiCc(self.other_cc));
+        let value_snap = match prop {
+            Prop::Velocity => self.value_snap[0],
+            Prop::Pan => self.value_snap[1],
+            Prop::MidiCc(_) => self.cc_value_snap,
+            _ => ValueSnap::OFF,
+        };
+        let land = prop.land(value_snap);
 
         // The paint: at touch-down and at every move, the eligible notes under x take the value under y.
         let response = ui.interact(values, id.with("graph"), Sense::drag());
@@ -1874,17 +1941,18 @@ impl PianoRoll {
         // nothing until the lift.
         let pinch = pinch_press(ui, response.id);
         if pinch
-            && let Some((orig, _)) = self.graph_drag.take()
+            && let Some((orig, orig_cc, _)) = self.graph_drag.take()
             && let Some(clip) = self.clip_mut(song)
         {
             // What it painted (if anything) put back: a touch that changed nothing.
             clip.events = orig;
+            clip.file.midi_cc = orig_cc;
             actions.push(PianoRollAction::Resync);
         }
         // Every drag starts afresh, also after one that an undo cancelled (`Context::stop_dragging`) without an end.
         if response.drag_started() && live && !pinch {
-            let events = self.clip(song).map_or(&[][..], |c| &c.events);
-            self.graph_drag = Some((events.to_vec(), false));
+            let (events, midi_cc) = self.clip(song).map_or((&[][..], &[][..]), |c| (&c.events[..], &c.file.midi_cc[..]));
+            self.graph_drag = Some((events.to_vec(), midi_cc.to_vec(), false));
         }
         // The finger and the value it paints, on the value grid while its snap is on.
         let touch = (response.interact_pointer_pos())
@@ -1892,8 +1960,9 @@ impl PianoRoll {
             .map(|p| (p, prop.landed(graph_lane::v_at(values, p.y), land)));
         if let Some((p, value)) = touch {
             let tick = g.tick(p.x);
-            let painted = self.clip_mut(song).is_some_and(|clip| {
-                graph_lane::paint_notes(&mut clip.events, &self.selected, prop, tick, value)
+            let painted = self.clip_mut(song).is_some_and(|clip| match prop {
+                Prop::MidiCc(cc) => paint_cc_point(clip, cc, tick, value),
+                _ => graph_lane::paint_notes(&mut clip.events, &self.selected, prop, tick, value),
             });
             if painted {
                 // V or P of the remembered note.
@@ -1904,14 +1973,14 @@ impl PianoRoll {
                     Prop::Pitch | Prop::Repeat => {}
                 }
                 edited(actions, false);
-                if let Some((_, reported)) = self.graph_drag.as_mut() {
+                if let Some((_, _, reported)) = self.graph_drag.as_mut() {
                     *reported = true;
                 }
             }
         }
         if response.drag_stopped() || !live {
-            let events = self.clip(song).map_or(&[][..], |c| &c.events);
-            self.graph_drag_end(events, actions);
+            let (events, midi_cc) = self.clip(song).map_or((&[][..], &[][..]), |c| (&c.events[..], &c.file.midi_cc[..]));
+            self.graph_drag_end(events, midi_cc, actions);
         }
 
         // The value area: guides or the value grid, beat lines, the past-the-end overlay, then a stem and a cap per
@@ -1978,7 +2047,7 @@ impl PianoRoll {
             painter.rect_filled(stem, 0.0, ink);
             painter.rect_filled(Rect::from_x_y_ranges(x0..=x1, y..=y + 2.0 * px), 0.0, ink);
         };
-        for ghost in ghosts {
+        for ghost in ghosts.iter().filter(|_| !matches!(prop, Prop::MidiCc(_))) {
             let v = match prop {
                 Prop::Pan => ghost.pan,
                 _ => ghost.velocity,
@@ -1990,6 +2059,20 @@ impl PianoRoll {
                 v.into(),
                 ink.gamma_multiply(GHOST_ALPHA),
             );
+        }
+        if let Prop::MidiCc(cc) = prop
+            && let Some(curve) = self.clip(song).and_then(|clip| clip.file.midi_cc.iter().find(|c| c.cc == cc))
+        {
+            let path: Vec<Pos2> = curve.points.iter()
+                .map(|point| pos2(g.x(f64::from(point.tick)), cap_y(point.value)))
+                .collect();
+            let ink = color.to_color32();
+            if path.len() >= 2 {
+                painter.add(egui::Shape::line(path.clone(), egui::Stroke::new(px * 2.0, ink)));
+            }
+            for point in path {
+                painter.circle_filled(point, px * 3.0, ink);
+            }
         }
         for pass in [false, true] {
             for (e, _) in events
@@ -2006,10 +2089,14 @@ impl PianoRoll {
         // The value under a dragging finger, on its cap's row ([`value_label`]).
         if let Some((p, v)) = touch {
             let at = pos2(p.x, cap_y(v) + px);
-            let midi =
-                land.grid().is_some() && self.value_snap[self.graph.item].grid == ValueGrid::Steps;
+            let midi = land.grid().is_some() && match prop {
+                Prop::Velocity => self.value_snap[0].grid == ValueGrid::Steps,
+                Prop::MidiCc(_) => self.cc_value_snap.grid == ValueGrid::Steps,
+                _ => false,
+            };
             let text = match prop {
                 Prop::Velocity if midi => format!("MIDI {}", v >> 1),
+                Prop::MidiCc(cc) => format!("CC {cc}: {}", (127.0 * prop.frac(v)).round()),
                 Prop::Velocity => format!("{} %", (100.0 * prop.frac(v)).round()),
                 _ => DRUM_SLOT_PARAMS[1].display_text(prop.frac(v)),
             };
@@ -2126,13 +2213,28 @@ impl PianoRoll {
                 // Beside the time modes, the value snap of the graph lane's item (#32): its percents, then Vel's MIDI
                 // velocities or Pan's left, centre and right.
                 let item = self.graph.item;
-                let steps = ["MIDI", "L/C/R"][item];
+                let prop = graph_lane::ROLL_PROPS.get(item).copied().unwrap_or(Prop::MidiCc(self.other_cc));
+                let steps = match prop {
+                    Prop::Velocity | Prop::MidiCc(_) => "MIDI",
+                    Prop::Pan => "L/C/R",
+                    _ => "MIDI",
+                };
                 let grids = (ValueGrid::ALL.into_iter()).filter(|&g| g != ValueGrid::Rows);
                 let grids = grids.map(|g| match g {
                     ValueGrid::Steps => (g, steps.to_owned()),
                     _ => (g, g.label()),
                 });
-                let vs = (self.value_snap[item], graph_lane::ROLL_LABELS[item]);
+                let snap = match prop {
+                    Prop::Velocity => self.value_snap[0],
+                    Prop::Pan => self.value_snap[1],
+                    Prop::MidiCc(_) => self.cc_value_snap,
+                    _ => ValueSnap::OFF,
+                };
+                let label = match prop {
+                    Prop::MidiCc(cc) => format!("CC {cc}"),
+                    _ => graph_lane::ROLL_LABELS.get(item).copied().unwrap_or("CC").to_owned(),
+                };
+                let vs = (snap, label.as_str());
                 let mut items = value::snap_items(self.snap, vs, grids);
                 // Then `Ghosts` (#152), a row below the value column.
                 let shown = [(true, "Show"), (false, "Hide")].map(|(on, label)| PopupItem {
@@ -2143,9 +2245,12 @@ impl PianoRoll {
                 let result =
                     popup::show(ctx, id.with("snap_menu"), snap_center, bounds, &items, cx);
                 match result.selected {
-                    Some(Pick::Value(grid)) => {
-                        self.value_snap[item] = self.value_snap[item].picked(grid);
-                    }
+                    Some(Pick::Value(grid)) => match prop {
+                        Prop::Velocity => self.value_snap[0] = self.value_snap[0].picked(grid),
+                        Prop::Pan => self.value_snap[1] = self.value_snap[1].picked(grid),
+                        Prop::MidiCc(_) => self.cc_value_snap = self.cc_value_snap.picked(grid),
+                        _ => {}
+                    },
                     Some(Pick::Ghosts(on)) => actions.push(PianoRollAction::GhostNotes(on)),
                     Some(pick) => self.snap = pick.snap(self.snap),
                     None => {}

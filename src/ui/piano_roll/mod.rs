@@ -1907,7 +1907,7 @@ impl PianoRoll {
                 .filter(|cc| !pinned.contains(cc))
                 .enumerate()
                 .map(|(i, cc)| {
-                    let name = ChannelParams::name(7 + i32::from(cc))
+                    let name = ChannelParams::name(7 + usize::from(cc))
                         .unwrap_or_else(|| format!("CC {cc}"));
                     let mut item = PopupItem::new(
                         cc, i % 3, i / 3, format!("CC {cc}  {name}"),

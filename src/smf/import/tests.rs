@@ -116,6 +116,23 @@ fn pts(lane: &Lane) -> Vec<(u32, u16)> {
         .collect()
 }
 
+/// The stored points of a pattern's MIDI CC curve: (song tick, stored u16).
+fn midi_cc_pts(lane: &Lane, cc: u8) -> Vec<(u32, u16)> {
+    assert_eq!(lane.clips.len(), 1, "{}", lane.label);
+    let clip = &lane.clips[0];
+    let curve = clip.file.midi_cc.iter().find(|curve| curve.cc == cc)
+        .unwrap_or_else(|| panic!("no MIDI CC {cc} in {}", lane.label));
+    curve.points.iter().map(|point| (clip.start_tick + point.tick, point.value)).collect()
+}
+
+/// The sorted controller numbers on a pattern's clip.
+fn midi_cc_numbers(lane: &Lane) -> Vec<u8> {
+    assert_eq!(lane.clips.len(), 1, "{}", lane.label);
+    let mut numbers: Vec<u8> = lane.clips[0].file.midi_cc.iter().map(|curve| curve.cc).collect();
+    numbers.sort_unstable();
+    numbers
+}
+
 fn names(song: &Song) -> Vec<&str> {
     song.channels.iter().map(|c| c.name.as_str()).collect()
 }
@@ -648,7 +665,7 @@ fn clips_start_on_four_beats_and_grow_over_their_notes() {
         128,
         vec![vec![cc(2 * 128, 0, 7, 1), cc(9 * 128, 0, 7, 2)]],
     ));
-    let c = &lane(&song.channels[1], "Volume").clips[0];
+    let c = &song.channels[1].lanes[0].clips[0];
     assert_eq!((c.start_tick, c.visible_len_beats), (0, 9.0 + 1.0 / 128.0));
     assert!(c.loop_ticks().unwrap() >= c.visible_ticks());
     assert!(
@@ -663,7 +680,7 @@ fn a_grown_loop_stays_b_times_a_power_of_two() {
     // The last point sits exactly on 8 = b·2ᵏ beats: the visible part is a tick longer, so the loop doubles to 16,
     // never just covers it with 8 + 1/128.
     let song = open(&smf(128, vec![vec![cc(0, 0, 7, 1), cc(8 * 128, 0, 7, 2)]]));
-    let c = &lane(&song.channels[1], "Volume").clips[0];
+    let c = &song.channels[1].lanes[0].clips[0];
     assert_eq!(c.visible_len_beats, 8.0 + 1.0 / 128.0);
     assert_eq!(c.loop_len_beats, 16.0);
 }
@@ -695,7 +712,7 @@ fn the_last_events_of_a_grown_clip_play() {
         value: points::unit(value),
         control: true,
     };
-    assert_eq!(last(lane(c, "Sustain Pedal")), Some((1024, point(0))));
+    assert_eq!(midi_cc_pts(&c.lanes[0], 64), [(0, 65533), (1024, 0)]);
     assert_eq!(last(lane(c, "Pitch Wheel")), Some((1024, point(32769))));
     assert_eq!(last(&c.lanes[0]), Some((1024, note(1024, 1.0, 62, 128))));
     // So a re-export keeps the last note and the pedal release.

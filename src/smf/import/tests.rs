@@ -887,27 +887,33 @@ fn controller_lanes_are_reused_by_channel_and_midi_channel() {
             vec![name("B"), cc(128, 0, 7, 30), cc(128, 1, 7, 40)],
         ],
     );
-    // Split off: one lane per MIDI channel on the current channel, shared by the tracks.
-    let keys = into_keys(&bytes, ImportOpts::ONE_CHANNEL).channels[1].clone();
-    assert_eq!(
-        autos(&keys),
-        [(14, "CHN #0 : MIDI CC #7"), (14, "CHN #1 : MIDI CC #7")]
-    );
     let value = |v: u64| (v * 7874 * 65534 / 1_000_000) as u16;
-    assert_eq!(
-        pts(&keys.lanes[1]),
-        [(0, value(10)), (128, value(10)), (128, value(30))]
-    );
-    // Split on: one lane on each MIDI channel's channel.
-    let song = open(&bytes);
-    assert_eq!(autos(&song.channels[1]), [(14, "Volume")]);
-    assert_eq!(autos(&song.channels[2]), [(14, "Volume")]);
-    assert_eq!(pts(&song.channels[2].lanes[1]).len(), 3);
-}
 
+    // Split off: each source track gets its own pattern. MIDI channels sharing the target pattern combine on CC 7.
+    let song = into_keys(&bytes, ImportOpts::ONE_CHANNEL);
+    let keys = &song.channels[1];
+    assert_eq!(
+        labels(keys),
+        [
+            (LaneKind::Notes, ""),
+            (LaneKind::Notes, "A"),
+            (LaneKind::Notes, "B"),
+        ]
+    );
+    assert_eq!(midi_cc_pts(lane(keys, "A"), 7), [(0, value(10)), (0, value(20))]);
+    assert_eq!(midi_cc_pts(lane(keys, "B"), 7), [(128, value(30)), (128, value(40))]);
+
+    // Split on: each source track's controller curves stay in the corresponding MIDI channel pattern.
+    let song = open(&bytes);
+    let ch0 = &song.channels[1];
+    let ch1 = &song.channels[2];
+    assert_eq!(midi_cc_pts(&ch0.lanes[0], 7), [(0, value(10))]);
+    assert_eq!(midi_cc_pts(&ch0.lanes[1], 7), [(128, value(30))]);
+    assert_eq!(midi_cc_pts(&ch1.lanes[0], 7), [(0, value(20))]);
+    assert_eq!(midi_cc_pts(&ch1.lanes[1], 7), [(128, value(40))]);
+}
 #[test]
-fn a_lane_shared_by_tracks_steps_in_time_order() {
-    // Track B's point falls between track A's two: the curve is still stepped in time order, with no ramp steps.
+fn midi_cc_curves_stay_with_their_source_pattern() {
     let bytes = smf(
         128,
         vec![
@@ -916,21 +922,18 @@ fn a_lane_shared_by_tracks_steps_in_time_order() {
         ],
     );
     let song = open(&bytes);
-    let volume = lane(&song.channels[1], "Volume");
+    let channel = &song.channels[1];
     let value = |v: u64| (v * 7874 * 65534 / 1_000_000) as u16;
     assert_eq!(
-        pts(volume),
-        [
-            (0, value(10)),
-            (128, value(10)),
-            (128, value(20)),
-            (256, value(20)),
-            (256, value(30)),
-        ]
+        labels(channel),
+        [(LaneKind::Notes, "A"), (LaneKind::Notes, "B")]
     );
-    assert_eq!(volume.clips[0].events.len(), 5);
+    assert_eq!(
+        midi_cc_pts(&channel.lanes[0], 7),
+        [(0, value(10)), (256, value(30))]
+    );
+    assert_eq!(midi_cc_pts(&channel.lanes[1], 7), [(128, value(20))]);
 }
-
 #[test]
 fn pitch_wheel() {
     let bytes = smf(

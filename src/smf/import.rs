@@ -270,10 +270,8 @@ pub fn import(
                             ch,
                             7 + i32::from(cc),
                             label,
-                            track_index,
-                            &name,
-                            beat,
-                            value,
+                            (track_index, &name),
+                            (beat, value),
                         );
                     }
                 }
@@ -286,7 +284,7 @@ pub fn import(
                     let value = ((f64::from(value) * 0.000061039 * 65534.0) as u16).min(65534);
                     if let Some(target) = state.target(song, ch, &name, &mut made_here, track_index)
                     {
-                        state.point(target, ch, 4, label, track_index, &name, beat, value);
+                        state.point(target, ch, 4, label, (track_index, &name), (beat, value));
                     }
                 }
                 MidiMsg::ChannelPressure { .. } => {}
@@ -463,11 +461,11 @@ impl State<'_> {
         ch: u8,
         param: i32,
         label: String,
-        track: usize,
-        track_name: &str,
-        beat: f64,
-        value: u16,
+        source: (usize, &str),
+        point: (f64, u16),
     ) {
+        let (track, track_name) = source;
+        let (beat, value) = point;
         let pattern_track = if (7..=133).contains(&param) { track } else { 0 };
         let next = self.autos.len();
         let i = *self

@@ -962,10 +962,15 @@ impl PianoRoll {
         self.menus(ui, id, at, song, &mut actions, cx);
         // After the menus, which take Escape first.
         self.keys(ui, grid, cx, song, &mut actions);
-        // This frame's own edits are not outside changes.
+        // This frame's own edits are not outside changes. Keep both snapshots in step so a painted CC drag stays
+        // one continuous gesture and one undo step.
         let events = self.clip(song).map_or(&[][..], |c| &c.events);
         if events != self.seen.as_slice() {
             self.seen = events.to_vec();
+        }
+        let midi_cc = self.clip(song).map_or(&[][..], |c| &c.file.midi_cc);
+        if midi_cc != self.seen_cc.as_slice() {
+            self.seen_cc = midi_cc.to_vec();
         }
         actions
     }
@@ -1971,7 +1976,7 @@ impl PianoRoll {
                 match prop {
                     Prop::Velocity => self.remembered.velocity = byte,
                     Prop::Pan => self.remembered.pan = byte.min(254),
-                    Prop::Pitch | Prop::Repeat => {}
+                    Prop::Pitch | Prop::Repeat | Prop::MidiCc(_) => {}
                 }
                 edited(actions, false);
                 if let Some((_, _, reported)) = self.graph_drag.as_mut() {

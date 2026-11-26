@@ -39,6 +39,10 @@ jobs:
             git commit -m "Format pattern CC editor changes"
             git push origin "HEAD:${GITHUB_REF_NAME}"
           fi
+      - name: System libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libxkbcommon-dev libwayland-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libclang-dev
       - name: Lint
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Test

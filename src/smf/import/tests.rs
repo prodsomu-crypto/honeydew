@@ -557,8 +557,7 @@ fn imported_channels_play_their_program_and_gm_drums_from_running_status() {
 
 #[test]
 fn each_track_starts_a_new_lane() {
-    // Split off: each track's first note adds a lane named after it to the current channel; tracks without notes
-    // add none, and every MIDI channel of a track shares its lane.
+    // Split off: each source track's notes and MIDI CC stay together in a pattern named after the track.
     let bytes = smf(
         96,
         vec![
@@ -575,7 +574,7 @@ fn each_track_starts_a_new_lane() {
             (LaneKind::Notes, ""),
             (LaneKind::Notes, "T1"),
             (LaneKind::Notes, "T2"),
-            (LaneKind::Automation, "CHN #0 : MIDI CC #7"),
+            (LaneKind::Notes, "Ctl"),
         ]
     );
     assert_eq!(notes(&keys.lanes[0]), [(0, 72, 204, 1.0)]);
@@ -584,9 +583,11 @@ fn each_track_starts_a_new_lane() {
         [(0, 60, 128, 1.0), (0, 62, 128, 1.0)]
     );
     assert_eq!(notes(&keys.lanes[2]), [(128, 64, 128, 1.0)]);
-    assert_eq!(pts(&keys.lanes[3]).len(), 3);
+    let value = |v: u64| (v * 7874 * 65534 / 1_000_000) as u16;
+    assert_eq!(midi_cc_pts(&keys.lanes[2], 7), [(0, value(100))]);
+    assert_eq!(midi_cc_pts(&keys.lanes[3], 7), [(0, value(50))]);
 
-    // Split on: a channel made in this track takes the track's notes on its own lane; a later track on it adds one.
+    // Split on: CC that precedes its first note still lands in that track's note pattern.
     let bytes = smf(
         96,
         vec![
@@ -594,17 +595,15 @@ fn each_track_starts_a_new_lane() {
             vec![name("B"), on(0, 0, 61, 64)],
         ],
     );
-    let a = &open(&bytes).channels[1];
+    let song = open(&bytes);
+    let a = &song.channels[1];
     assert_eq!(
         labels(a),
-        [
-            (LaneKind::Notes, "A"),
-            (LaneKind::Notes, "B"),
-            (LaneKind::Automation, "Modulation Wheel")
-        ]
+        [(LaneKind::Notes, "A"), (LaneKind::Notes, "B")]
     );
     assert_eq!(notes(&a.lanes[0]), [(128, 60, 128, 1.0)]);
     assert_eq!(notes(&a.lanes[1]), [(0, 61, 128, 1.0)]);
+    assert_eq!(midi_cc_pts(&a.lanes[0], 1), [(0, value(10))]);
 
     // One flag a track: once a new channel's first note took it, a note for an older channel goes to that channel's
     // last notes lane.
@@ -622,9 +621,7 @@ fn each_track_starts_a_new_lane() {
         [(0, 60, 128, 1.0), (128, 61, 128, 1.0)]
     );
     assert_eq!(labels(&song.channels[2]), [(LaneKind::Notes, "B")]);
-}
-
-#[test]
+}#[test]
 fn clips_start_on_four_beats_and_grow_over_their_notes() {
     let clip = |tracks| open(&smf(128, tracks)).channels[1].lanes[0].clips[0].clone();
     // Start floor(5 / 4)·4 = 4; the last note starts 9.5 beats past it and lasts a beat, which the clip covers.

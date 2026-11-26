@@ -143,7 +143,7 @@ use eframe::egui::{self, Align2, Color32, Id, Pos2, Rangef, Rect, Sense, Vec2, p
 
 use crate::params::DRUM_SLOT_PARAMS;
 use crate::song::scales::{CHROMATIC, SCALE_MASKS, scale_to_stored};
-use crate::song::points::{Point, Shape};
+use crate::song::points::Point;
 use crate::song::{ChannelParams, Clip, Event, LaneKind, MidiCc, PPQ, Song, TimeSig};
 use crate::theme::{Rgba, channel_color};
 use crate::ui::automation::geom;

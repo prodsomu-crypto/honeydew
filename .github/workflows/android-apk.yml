@@ -1,0 +1,112 @@
+name: Android Release APK
+
+on:
+  push:
+    branches: ["codex/fl-studio-note-polish"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-release-apk-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.91.0
+        with:
+          targets: aarch64-linux-android, armv7-linux-androideabi
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: android-arm-release-apk
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Android build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libclang-dev
+          sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'ndk;28.0.13004108'
+          cargo install cargo-ndk --version 4.1.2 --locked
+      - name: Prepare Android release signing key
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -eu
+          key_file="$RUNNER_TEMP/honeydew-release.jks"
+          umask 077
+          if [ -n "${ANDROID_KEYSTORE_BASE64:-}" ] &&
+             [ -n "${ANDROID_KEYSTORE_PASSWORD:-}" ] &&
+             [ -n "${ANDROID_KEY_ALIAS:-}" ] &&
+             [ -n "${ANDROID_KEY_PASSWORD:-}" ]; then
+            printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$key_file"
+            test -s "$key_file"
+            echo "Using the repository's configured Android release signing key."
+          else
+            echo "::warning::Android release signing secrets are incomplete; generating a one-run sideload signing key. Configure all four ANDROID_KEYSTORE_* / ANDROID_KEY_* secrets to make future builds update-compatible."
+            store_password="$(openssl rand -hex 24)"
+            key_password="$(openssl rand -hex 24)"
+            key_alias="honeydew-ci-release"
+            keytool -genkeypair -noprompt -storetype JKS -keystore "$key_file" \
+              -storepass "$store_password" -keypass "$key_password" -alias "$key_alias" \
+              -keyalg RSA -keysize 3072 -validity 10000 \
+              -dname "CN=Honeydew CI Release,O=Honeydew,C=US"
+            {
+              echo "ANDROID_KEYSTORE_PASSWORD=$store_password"
+              echo "ANDROID_KEY_ALIAS=$key_alias"
+              echo "ANDROID_KEY_PASSWORD=$key_password"
+            } >> "$GITHUB_ENV"
+          fi
+          echo "ANDROID_KEYSTORE_FILE=$key_file" >> "$GITHUB_ENV"
+          if [ -n "${ANDROID_KEYSTORE_PASSWORD:-}" ]; then
+            echo "ANDROID_KEYSTORE_PASSWORD=$ANDROID_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "ANDROID_KEY_ALIAS=$ANDROID_KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "ANDROID_KEY_PASSWORD=$ANDROID_KEY_PASSWORD" >> "$GITHUB_ENV"
+          fi
+      - name: Build and verify signed release APKs
+        run: |
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.0.13004108"
+          tools/android-dist.sh --release
+          tools/android-dist.sh --release --base
+          ls -lh target/honeydew-android-*-arm.apk target/honeydew-android-*-arm-base.apk
+      - name: Remove signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/honeydew-release.jks"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: honeydew-android-release-apks
+          path: |
+            target/honeydew-android-*-arm.apk
+            target/honeydew-android-*-arm-base.apk
+          if-no-files-found: error
+          retention-days: 30
+      - name: Publish direct APK downloads
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-build-${{ github.run_number }}
+          name: Honeydew Android release build #${{ github.run_number }}
+          body: |
+            Automatically built and signature-verified Android release APKs from commit ${{ github.sha }}.
+
+            Includes the full APK (bundled sounds) and the smaller base APK (downloads sounds on first run).
+          target_commitish: ${{ github.sha }}
+          prerelease: true
+          make_latest: false
+          overwrite_files: true
+          files: |
+            target/honeydew-android-*-arm.apk
+            target/honeydew-android-*-arm-base.apk
+          fail_on_unmatched_files: true

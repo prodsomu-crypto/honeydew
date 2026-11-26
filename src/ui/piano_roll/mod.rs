@@ -2721,12 +2721,6 @@ fn slice_items() -> Vec<PopupItem<MoreOp>> {
     heads.into_iter().chain(sizes).chain(parts).collect()
 }
 
-/// `a` moved `t` of the way toward `b`.
-fn mix(a: Rgba, b: Rgba, t: f32) -> Color32 {
-    let ch = |x: f32, y: f32| x + (y - x) * t;
-    Rgba::rgb(ch(a.r, b.r), ch(a.g, b.g), ch(a.b, b.b)).to_color32()
-}
-
 /// What the grid's key rows show (grid background steps 2, 4 and 6).
 pub(crate) struct Rows {
     /// Step 2: `moduleFill`, the key being in the project scale (Chromatic reads as C major) and in the key range of an
@@ -2807,6 +2801,63 @@ fn paint_marks(
     }
 }
 
+/// The bottom shadow of a note, in the same family as its fill.
+const NOTE_SHADOW_DARKEN: f32 = 0.34;
+/// The quietest note is mixed toward white by this amount; the default velocity keeps the track colour unchanged.
+const QUIET_NOTE_LIGHTEN: f32 = 0.42;
+/// The loudest note is darkened by this amount relative to the default velocity.
+const LOUD_NOTE_DARKEN: f32 = 0.32;
+
+/// An sRGBA interpolation used for the selected-note tint and the velocity shading.
+fn blend_color(from: Color32, to: Color32, amount: f32) -> Color32 {
+    let amount = amount.clamp(0.0, 1.0);
+    let from = from.to_srgba_unmultiplied();
+    let to = to.to_srgba_unmultiplied();
+    let channel = |a: u8, b: u8| {
+        (f32::from(a) + (f32::from(b) - f32::from(a)) * amount)
+            .round()
+            .clamp(0.0, 255.0) as u8
+    };
+    Color32::from_rgba_unmultiplied(
+        channel(from[0], to[0]),
+        channel(from[1], to[1]),
+        channel(from[2], to[2]),
+        channel(from[3], to[3]),
+    )
+}
+
+/// Darken RGB while keeping the source alpha intact.
+fn darken_color(color: Color32, amount: f32) -> Color32 {
+    let [r, g, b, a] = color.to_srgba_unmultiplied();
+    let amount = amount.clamp(0.0, 1.0);
+    let channel = |value: u8| (f32::from(value) * (1.0 - amount)).round() as u8;
+    Color32::from_rgba_unmultiplied(channel(r), channel(g), channel(b), a)
+}
+
+/// Lighter at low velocity, darker at high velocity, with the channel colour as the default-velocity midpoint.
+fn velocity_color(base: Color32, velocity: u8) -> Color32 {
+    let velocity = f32::from(velocity) / 255.0;
+    let default = f32::from(Event::DEFAULT_VELOCITY) / 255.0;
+    if velocity <= default {
+        let light = (1.0 - velocity / default.max(f32::EPSILON)) * QUIET_NOTE_LIGHTEN;
+        blend_color(base, Color32::WHITE, light)
+    } else {
+        let loud = (velocity - default) / (1.0 - default).max(f32::EPSILON);
+        darken_color(base, LOUD_NOTE_DARKEN * loud)
+    }
+}
+
+/// Draws the softly rounded desktop-style note body and its one-pixel underside shadow.
+fn paint_note_body(painter: &egui::Painter, rect: Rect, fill: Color32, px: f32) {
+    let radius = (rect.height() * 0.2).round().clamp(1.0, 4.0) as u8;
+    let rounding = egui::CornerRadius::same(radius);
+    painter.rect_filled(
+        rect.translate(vec2(0.0, px)),
+        rounding,
+        darken_color(fill, NOTE_SHADOW_DARKEN),
+    );
+    painter.rect_filled(rect, rounding, fill);
+}
 /// Grid background steps 7–9: the ghost notes, black α 0.15 `past` the clip's loop end, then the notes in `color`, and
 /// with `names` (the octave numbering, `middle_c_is_c4`: Settings `Show key names` is on) their key names (#154): the
 /// key column's label font, in `background`, 0.08 U in from the note's left (after a slide's ▶), only on a note wide
@@ -2822,7 +2873,7 @@ fn paint_notes(
 ) {
     let (theme, m) = (cx.theme, cx.m);
     let px = 1.0 / m.ppp();
-    // Flat cells with a 1-px gap right and below, so neighbours stay apart.
+    // Keep a 1-px gap between notes; rounded bodies and underside shadows give the desktop piano-roll look.
     let cell = |r: Rect| {
         Rect::from_min_max(
             r.min,
@@ -2831,33 +2882,37 @@ fn paint_notes(
     };
     for ghost in ghosts {
         let ghost_color = channel_color(ghost.hue, theme).to_color32();
-        painter.rect_filled(
+        paint_note_body(
+            painter,
             cell(ghost.rect(g)),
-            0.0,
             ghost_color.gamma_multiply(GHOST_ALPHA),
+            px,
         );
     }
     if let Some(past) = past {
         painter.rect_filled(past, 0.0, Color32::from_black_alpha(PAST_END_LANE_ALPHA));
     }
-    let (normal, pale) = (
-        color.to_color32(),
-        mix(color, theme.colors.text, graph_lane::SELECTED_TINT),
-    );
+    let base = color.to_color32();
+    let selected_ink = theme.colors.text.to_color32();
     let ink = theme.colors.background.to_color32();
     let font = names.and(label_font(g, m));
     for (i, e) in events.iter().enumerate() {
         if let Some(r) = g.note_rect(e) {
-            let fill = if selected.get(i) == Some(&true) {
-                pale
-            } else {
-                normal
-            };
-            let r = cell(r);
-            painter.rect_filled(r, 0.0, fill);
-            let &Event::Note { key, slide, .. } = e else {
+            let &Event::Note {
+                key,
+                slide,
+                velocity,
+                ..
+            } = e
+            else {
                 continue;
             };
+            let mut fill = velocity_color(base, velocity);
+            if selected.get(i) == Some(&true) {
+                fill = blend_color(fill, selected_ink, graph_lane::SELECTED_TINT);
+            }
+            let r = cell(r);
+            paint_note_body(painter, r, fill, px);
             if slide {
                 paint_slide(painter, r, ink, m);
             }

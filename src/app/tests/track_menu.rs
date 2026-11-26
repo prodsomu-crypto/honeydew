@@ -1802,8 +1802,10 @@ fn import_midi_tracks_opens_our_picker_in_my_midi_whose_pick_goes_into_the_chann
         .collect();
     assert_eq!(
         labels[1..],
-        ["Lead", "CHN #4 : Pitch Wheel", "CHN #4 : MIDI CC #2"]
+        ["Lead", "CHN #4 : Pitch Wheel"]
     );
+    let lead = &rig.app.song.channels[2].lanes[1];
+    assert!(lead.clips[0].file.midi_cc.iter().any(|curve| curve.cc == 2));
     assert_eq!(rig.app.song.tempo_bpm, before.tempo_bpm);
     assert_eq!(rig.take(), ["ReplaceSong adopting"]);
     // One undo step.
@@ -2136,7 +2138,9 @@ fn an_import_shows_the_hidden_tracks_of_its_channel() {
     rig.app.song_edited(SongEdit::Final, 0);
     rig.frame(vec![]);
     import_tune(&mut rig, 2);
-    assert_eq!(lanes(&rig, 2).len(), 3 + 2, "imported");
+    assert_eq!(lanes(&rig, 2).len(), 3 + 1, "the controller is part of the imported pattern");
+    let lead = rig.app.song.channels[2].lanes.iter().find(|lane| lane.label == "Lead").unwrap();
+    assert!(lead.clips[0].file.midi_cc.iter().any(|curve| curve.cc == 2));
     assert!(!rig.app.song.channels[2].zipped);
 }
 

@@ -571,7 +571,6 @@ pub fn frame(
     let line = Rect::from_x_y_ranges(strip.x_range(), strip.top() - q..=strip.top());
     painter.rect_filled(line, 0.0, color.gamma_multiply(0.45));
     let content = content(strip, m);
-    let list = content.with_max_x(strip.left() + list_w);
     *item = (*item).min(labels.len().saturating_sub(1));
     let (content, _) = frame_tabs(ui, cx, id, content, list_w, labels, color, item);
     content

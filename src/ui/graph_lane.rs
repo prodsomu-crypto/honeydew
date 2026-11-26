@@ -594,6 +594,7 @@ pub fn frame_with_menu(
     frame_tabs(ui, cx, id, content, list_w, labels, color, item)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn frame_tabs(
     ui: &mut Ui, cx: &UiCtx, id: Id, content: Rect, list_w: f32, labels: &[&str],
     color: Color32, item: &mut usize,

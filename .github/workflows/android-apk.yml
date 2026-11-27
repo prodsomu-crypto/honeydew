@@ -48,29 +48,6 @@ jobs:
       - name: Test
         run: cargo test --workspace
 
-      # A release key is optional for downloadable/test APKs. Without one, build the
-      # Gradle debug variant, which is signed with the local debug keystore.
-      - name: Prepare optional release signing key
-        id: signing
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: |
-          missing=false
-          for value in "$ANDROID_KEYSTORE_BASE64" "$ANDROID_KEYSTORE_PASSWORD" "$ANDROID_KEY_ALIAS" "$ANDROID_KEY_PASSWORD"; do
-            if [ -z "$value" ]; then missing=true; fi
-          done
-          if [ "$missing" = false ]; then
-            umask 077
-            printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/honeydew-release.jks"
-            echo "available=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Release signing secrets are not configured; building debug-signed APKs instead."
-          fi
-
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -85,8 +62,33 @@ jobs:
           sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'ndk;28.0.13004108'
           cargo install cargo-ndk --version 4.1.2 --locked
 
-      - name: Build signed release APKs
-        if: steps.signing.outputs.available == 'true'
+      # Use the configured long-lived key when present. Otherwise create a temporary
+      # release key so Gradle still builds the actual release variant (not debug).
+      - name: Prepare release signing key
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          umask 077
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ] && [ -n "$ANDROID_KEYSTORE_PASSWORD" ] && [ -n "$ANDROID_KEY_ALIAS" ] && [ -n "$ANDROID_KEY_PASSWORD" ]; then
+            printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/honeydew-release.jks"
+          else
+            echo "::warning::No persistent release key configured; generating a temporary signing key. Keep this APK's signature in mind for future updates."
+            STORE_PASS=$(openssl rand -hex 24)
+            KEY_PASS=$(openssl rand -hex 24)
+            keytool -genkeypair -noprompt -keystore "$RUNNER_TEMP/honeydew-release.jks" \
+              -storepass "$STORE_PASS" -keypass "$KEY_PASS" -alias honeydew-release \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Honeydew Release,O=Honeydew,C=US"
+            echo "ANDROID_KEYSTORE_PASSWORD=$STORE_PASS" >> "$GITHUB_ENV"
+            echo "ANDROID_KEY_ALIAS=honeydew-release" >> "$GITHUB_ENV"
+            echo "ANDROID_KEY_PASSWORD=$KEY_PASS" >> "$GITHUB_ENV"
+          fi
+          echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/honeydew-release.jks" >> "$GITHUB_ENV"
+
+      - name: Build release APKs
         env:
           ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/honeydew-release.jks
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -94,15 +96,10 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.0.13004108"
+          # Values generated above are exported through GITHUB_ENV; configured secrets
+          # are already available in this step's environment.
           tools/android-dist.sh --release
           tools/android-dist.sh --release --base
-
-      - name: Build debug-signed APKs (no release key configured)
-        if: steps.signing.outputs.available != 'true'
-        run: |
-          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.0.13004108"
-          tools/android-dist.sh
-          tools/android-dist.sh --base
 
       - name: Remove signing key
         if: always()
@@ -110,7 +107,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Honeydew-Android-APKs
+          name: Honeydew-Android-Release-APKs
           path: target/honeydew-android-*-arm*.apk
           if-no-files-found: error
           retention-days: 30

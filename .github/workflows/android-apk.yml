@@ -80,7 +80,11 @@ jobs:
           else
             echo "::warning::No persistent release key configured; generating a temporary signing key. Future updates must use the same signing identity."
             STORE_PASS=$(openssl rand -hex 24)
-            # Use one password for both entries: modern keytool defaults to PKCS12,\n            # where separate store/key passwords are not supported consistently.\n            KEY_PASS="$STORE_PASS"\n            KEY_ALIAS=honeydew-release\n            keytool -genkeypair -noprompt -storetype JKS -keystore "$RUNNER_TEMP/honeydew-release.jks" \
+            # Use one password for both entries: modern keytool defaults to PKCS12,
+            # where separate store/key passwords are not supported consistently.
+            KEY_PASS="$STORE_PASS"
+            KEY_ALIAS=honeydew-release
+            keytool -genkeypair -noprompt -storetype JKS -keystore "$RUNNER_TEMP/honeydew-release.jks" \
               -storepass "$STORE_PASS" -keypass "$KEY_PASS" -alias "$KEY_ALIAS" \
               -keyalg RSA -keysize 2048 -validity 10000 \
               -dname "CN=Honeydew Release,O=Honeydew,C=US"

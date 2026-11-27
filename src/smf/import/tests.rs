@@ -838,7 +838,7 @@ fn controller_lanes() {
     assert_eq!(midi_cc_pts(&c.lanes[0], 10), [(0, value(5))]);
     assert_eq!(
         midi_cc_numbers(&c.lanes[0]),
-        [0, 1, 8, 10, 11, 32, 63, 64, 74, 121]
+        [0, 1, 7, 8, 10, 11, 32, 63, 64, 74, 121]
     );
     // CC 10 never becomes note pan (`notes` checks pan 127).
     assert_eq!(notes(&c.lanes[0]).len(), 1);
@@ -887,7 +887,7 @@ fn controller_lanes() {
     assert_eq!(autos(keys), [(4, "CHN #2 : Pitch Wheel")]);
     assert_eq!(
         midi_cc_numbers(lane(keys, "Ctl")),
-        [0, 1, 8, 10, 11, 32, 63, 64, 74, 121]
+        [0, 1, 7, 8, 10, 11, 32, 63, 64, 74, 121]
     );
 }
 #[test]

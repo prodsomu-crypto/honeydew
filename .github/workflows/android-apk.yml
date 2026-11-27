@@ -88,20 +88,19 @@ jobs:
       - name: Build signed release APKs
         if: steps.signing.outputs.available == 'true'
         env:
-          ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/28.0.13004108
           ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/honeydew-release.jks
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.0.13004108"
           tools/android-dist.sh --release
           tools/android-dist.sh --release --base
 
       - name: Build debug-signed APKs (no release key configured)
         if: steps.signing.outputs.available != 'true'
-        env:
-          ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/28.0.13004108
         run: |
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.0.13004108"
           tools/android-dist.sh
           tools/android-dist.sh --base
 

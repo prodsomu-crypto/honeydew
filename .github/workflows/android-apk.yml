@@ -74,30 +74,29 @@ jobs:
           umask 077
           if [ -n "$ANDROID_KEYSTORE_BASE64" ] && [ -n "$ANDROID_KEYSTORE_PASSWORD" ] && [ -n "$ANDROID_KEY_ALIAS" ] && [ -n "$ANDROID_KEY_PASSWORD" ]; then
             printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/honeydew-release.jks"
+            STORE_PASS="$ANDROID_KEYSTORE_PASSWORD"
+            KEY_ALIAS="$ANDROID_KEY_ALIAS"
+            KEY_PASS="$ANDROID_KEY_PASSWORD"
           else
-            echo "::warning::No persistent release key configured; generating a temporary signing key. Keep this APK's signature in mind for future updates."
+            echo "::warning::No persistent release key configured; generating a temporary signing key. Future updates must use the same signing identity."
             STORE_PASS=$(openssl rand -hex 24)
             KEY_PASS=$(openssl rand -hex 24)
+            KEY_ALIAS=honeydew-release
             keytool -genkeypair -noprompt -keystore "$RUNNER_TEMP/honeydew-release.jks" \
-              -storepass "$STORE_PASS" -keypass "$KEY_PASS" -alias honeydew-release \
+              -storepass "$STORE_PASS" -keypass "$KEY_PASS" -alias "$KEY_ALIAS" \
               -keyalg RSA -keysize 2048 -validity 10000 \
               -dname "CN=Honeydew Release,O=Honeydew,C=US"
-            echo "ANDROID_KEYSTORE_PASSWORD=$STORE_PASS" >> "$GITHUB_ENV"
-            echo "ANDROID_KEY_ALIAS=honeydew-release" >> "$GITHUB_ENV"
-            echo "ANDROID_KEY_PASSWORD=$KEY_PASS" >> "$GITHUB_ENV"
           fi
-          echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/honeydew-release.jks" >> "$GITHUB_ENV"
+          {
+            echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/honeydew-release.jks"
+            echo "ANDROID_KEYSTORE_PASSWORD=$STORE_PASS"
+            echo "ANDROID_KEY_ALIAS=$KEY_ALIAS"
+            echo "ANDROID_KEY_PASSWORD=$KEY_PASS"
+          } >> "$GITHUB_ENV"
 
       - name: Build release APKs
-        env:
-          ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/honeydew-release.jks
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.0.13004108"
-          # Values generated above are exported through GITHUB_ENV; configured secrets
-          # are already available in this step's environment.
           tools/android-dist.sh --release
           tools/android-dist.sh --release --base
 
